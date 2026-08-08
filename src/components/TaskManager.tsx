@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { TaskItem, ProjectTag } from '../types/scraper';
 import { CheckSquare, Plus, CheckCircle2, Clock, Play, Trash2 } from 'lucide-react';
 
+const PK_CITIES = [
+  'Abbottabad', 'Ayubia', 'Bahawalpur', 'Chitral', 'Dir', 'Faisalabad', 'Gilgit', 'Gujranwala', 'Gujrat', 
+  'Hunza', 'Hyderabad', 'Islamabad', 'Jhang', 'Kaghan', 'Karachi', 'Lahore', 'Larkana', 'Malakand', 'Malam Jabba', 
+  'Multan', 'Murree', 'Naran', 'Nathia Gali', 'Peshawar', 'Quetta', 'Rahim Yar Khan', 'Rawalpindi', 
+  'Sahiwal', 'Sargodha', 'Sheikhupura', 'Shogran', 'Sialkot', 'Skardu', 'Sukkur', 'Swat'
+];
+
 interface TaskManagerProps {
   tasks: TaskItem[];
   setTasks: React.Dispatch<React.SetStateAction<TaskItem[]>>;
@@ -86,11 +93,17 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
             <label className="block text-slate-400 font-medium mb-1">Target City</label>
             <input
               type="text"
+              list="task-cities"
               value={newCity}
               onChange={(e) => setNewCity(e.target.value)}
               placeholder="e.g. Lahore, Skardu, Hunza"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-purple-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-purple-500 font-medium"
             />
+            <datalist id="task-cities">
+              {PK_CITIES.map(c => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
           </div>
 
           <div className="flex items-end">
