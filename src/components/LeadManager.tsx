@@ -32,13 +32,15 @@ interface LeadManagerProps {
   setLeads: React.Dispatch<React.SetStateAction<Lead[]>>;
   activeProject: ProjectTag;
   onOpenOutreachModal: (lead: Lead) => void;
+  onLoadDemoLeads?: () => void;
 }
 
 export const LeadManager: React.FC<LeadManagerProps> = ({
   leads,
   setLeads,
   activeProject,
-  onOpenOutreachModal
+  onOpenOutreachModal,
+  onLoadDemoLeads
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('ALL');
@@ -427,44 +429,67 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {filteredLeads.map((lead) => {
-                const isSelected = selectedLeadIds.includes(lead.id);
-                const webStatus = lead.websiteStatus || (lead.website ? 'Reachable (status unverified)' : 'No Website');
-                const isFollowUpDue = !!lead.followUpDate && lead.followUpDate <= todayStr;
+              {filteredLeads.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+                        <Users className="w-6 h-6" />
+                      </div>
+                      <div className="text-slate-400 text-xs font-semibold">No Pakistan business leads found.</div>
+                      <p className="text-[11px] text-slate-500 max-w-xs leading-relaxed">
+                        Start scraping from Google Maps or Apify, or upload a CSV file to populate the database.
+                      </p>
+                      {onLoadDemoLeads && leads.length === 0 && (
+                        <button
+                          onClick={onLoadDemoLeads}
+                          className="mt-2 px-4 py-2 text-xs font-bold text-teal-400 hover:text-teal-300 border border-teal-800 hover:border-teal-700 bg-teal-950/40 hover:bg-teal-950/60 rounded-xl transition-all shadow-md shadow-teal-950/10 flex items-center gap-1.5"
+                        >
+                          <Sparkles className="w-4 h-4" /> Load Sample/Demo Leads
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredLeads.map((lead) => {
+                  const isSelected = selectedLeadIds.includes(lead.id);
+                  const webStatus = lead.websiteStatus || (lead.website ? 'Reachable (status unverified)' : 'No Website');
+                  const isFollowUpDue = !!lead.followUpDate && lead.followUpDate <= todayStr;
 
-                return (
-                  <tr key={lead.id} className={`hover:bg-slate-800/40 transition-colors ${isSelected ? 'bg-teal-950/20' : ''} ${isFollowUpDue ? 'bg-amber-950/20' : ''}`}>
-                    <td className="py-3 px-4">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleToggleSelect(lead.id)}
-                        className="rounded border-slate-700 bg-slate-900 text-teal-500 focus:ring-0"
-                      />
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center flex-wrap gap-2">
-                        <div className="font-bold text-white text-sm">{lead.title}</div>
-                        {lead.rating !== undefined && (
-                          <span className="text-[10px] text-amber-400 bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-800/40 font-bold inline-flex items-center gap-0.5">
-                            ★ {lead.rating} <span className="text-slate-500 font-normal">({lead.reviewsCount || 0})</span>
-                          </span>
+                  return (
+                    <tr key={lead.id} className={`hover:bg-slate-800/40 transition-colors ${isSelected ? 'bg-teal-950/20' : ''} ${isFollowUpDue ? 'bg-amber-950/20' : ''}`}>
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelect(lead.id)}
+                          className="rounded border-slate-700 bg-slate-900 text-teal-500 focus:ring-0"
+                        />
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center flex-wrap gap-2">
+                          <div className="font-bold text-white text-sm">{lead.title}</div>
+                          {lead.rating !== undefined && (
+                            <span className="text-[10px] text-amber-400 bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-800/40 font-bold inline-flex items-center gap-0.5">
+                              ★ {lead.rating} <span className="text-slate-500 font-normal">({lead.reviewsCount || 0})</span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3 text-teal-400" /> {lead.city} • <span className="text-slate-500">{lead.category}</span>
+                        </div>
+                        {lead.address && (
+                          <div className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                            📍 {lead.address}
+                          </div>
                         )}
-                      </div>
-                      <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3 text-teal-400" /> {lead.city} • <span className="text-slate-500">{lead.category}</span>
-                      </div>
-                      {lead.address && (
-                        <div className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                          📍 {lead.address}
-                        </div>
-                      )}
-                      {lead.notes && (
-                        <div className="text-[10px] text-amber-400/80 mt-1 italic">
-                          {lead.notes}
-                        </div>
-                      )}
-                    </td>
+                        {lead.notes && (
+                          <div className="text-[10px] text-amber-400/80 mt-1 italic">
+                            {lead.notes}
+                          </div>
+                        )}
+                      </td>
 
                     {/* Custom Group Tag Column */}
                     <td className="py-3 px-4">
@@ -651,8 +676,9 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
                     </td>
                   </tr>
                 );
-              })}
-            </tbody>
+              })
+            )}
+          </tbody>
           </table>
         </div>
       </div>

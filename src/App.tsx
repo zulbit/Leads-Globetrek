@@ -242,16 +242,8 @@ export function App() {
         
         if (leadsRes.ok) {
           const data = await leadsRes.json();
-          if (Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
             initialLeadsList = data;
-          } else {
-            // D1 is empty, bootstrap with INITIAL_LEADS
-            await fetch('/api/leads', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', ...headers },
-              body: JSON.stringify(INITIAL_LEADS)
-            });
-            initialLeadsList = INITIAL_LEADS;
           }
         }
         setLeads(initialLeadsList);
@@ -266,16 +258,8 @@ export function App() {
         
         if (tasksRes.ok) {
           const data = await tasksRes.json();
-          if (Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
             initialTasksList = data;
-          } else {
-            // D1 is empty, bootstrap with INITIAL_TASKS
-            await fetch('/api/tasks', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', ...headers },
-              body: JSON.stringify(INITIAL_TASKS)
-            });
-            initialTasksList = INITIAL_TASKS;
           }
         }
         setTasks(initialTasksList);
@@ -364,6 +348,12 @@ export function App() {
       }
       return [newTask, ...prev];
     });
+  };
+
+  const handleLoadDemoLeads = () => {
+    setLeads(INITIAL_LEADS);
+    setTasks(INITIAL_TASKS);
+    alert('Demo leads and tasks loaded! They are now saved in your D1 cloud database.');
   };
 
   const handleOpenOutreachModal = (lead: Lead) => {
@@ -540,6 +530,7 @@ export function App() {
               setLeads={setLeads}
               activeProject={activeProject}
               onOpenOutreachModal={handleOpenOutreachModal}
+              onLoadDemoLeads={handleLoadDemoLeads}
             />
           )}
 
