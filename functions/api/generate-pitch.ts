@@ -56,6 +56,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     const isDreamstay = projectTag === 'Dreamstay';
+
+    // Sanitize wa.me and whatsapp.com links out of the website parameters
+    let sanitizedWebsite = leadWebsite || '';
+    let sanitizedStatus = leadWebsiteStatus || 'No Website';
+    if (sanitizedWebsite.includes('wa.me') || sanitizedWebsite.includes('whatsapp.com') || sanitizedWebsite.includes('api.whatsapp.com')) {
+      sanitizedWebsite = '';
+      sanitizedStatus = 'No Website';
+    }
     
     // Customize system context based on brand/niche
     const systemPrompt = isDreamstay
@@ -75,16 +83,16 @@ Use line breaks to make it highly readable on phone viewports. Under 90 words.`;
 - Business Name: "${leadTitle}"
 - Category/Niche: "${leadCategory || 'Tourism & Hospitality'}"
 - City: "${leadCity}"
-- Website URL: "${leadWebsite || ''}"
-- Website Status: "${leadWebsiteStatus || ''}"
+- Website URL: "${sanitizedWebsite}"
+- Website Status: "${sanitizedStatus}"
 - Rating: ${leadRating !== undefined ? `${leadRating} ★ (${leadReviewsCount || 0} reviews)` : 'Not rated yet'}
 
 CRITICAL PERSONALIZATION INSTRUCTIONS (THE AI MAGIC):
 1. **Salutation**: Start with "AOA [Business Name] team!" or "AOA [Business Name]! Umeed hai aap khairiyat se honge."
 2. **Specific Website Hook**:
-   - If they have a working website (e.g. status contains "Reachable", website is not empty): Mention that you visited "${leadWebsite}" and compliment their digital presence, but explain how listing on ${isDreamstay ? 'Dreamstay' : 'Globetrek'} will expand their direct guest reach in ${leadCity}.
-   - If their website is broken (e.g. status contains "Broken", "Error", "404"): Say that you checked "${leadWebsite}" but noticed it seems down or returning an error, meaning they are losing direct bookings from tourists in ${leadCity}. Offer to build them a fast direct-booking landing page.
-   - If they have NO website (e.g. website is empty or status contains "No Website"): Point out that they are listed on Google Maps in ${leadCity} with no direct website, meaning they are paying heavy commissions to online agents. Offer to set up a direct booking site.
+   - If they have a working website (e.g. status contains "Reachable", website is not empty): Mention that you visited "${sanitizedWebsite}" and compliment their digital presence, but explain how listing on ${isDreamstay ? 'Dreamstay' : 'Globetrek'} will expand their direct guest reach in ${leadCity}.
+   - If their website is broken (e.g. status contains "Broken", "Error", "404"): Say that you checked "${sanitizedWebsite}" but noticed it seems down or returning an error, meaning they are losing direct bookings from tourists in ${leadCity}. Offer to build them a fast direct-booking landing page.
+   - If they have NO website (e.g. website is empty or status contains "No Website"): Point out that they are listed on Google Maps in ${leadCity} with no direct website (having only a WhatsApp link or no link), meaning they are paying heavy commissions to online agents or losing direct leads. Offer to set up a direct booking site.
 3. **Rating Validation**: If they have a high rating (4.0+), compliment it: "Aapki Google profile par ${leadRating} star rating aur reviews dekh kar bohat khushi hui!"
 4. **Call to Action**: End with a friendly question: "Kya main aapse iska 30-second mockup share kar sakta hoon?" or "Can we connect for a brief chat?"
 5. **Format**: Deliver only the final Roman Urdu WhatsApp message. No subject lines, no intro text, no placeholders, no hashtags, no quotes. Use emojis naturally.`;

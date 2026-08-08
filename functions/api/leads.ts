@@ -66,7 +66,19 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     const { results } = await env.DB.prepare(query).bind(...params).all();
-    return new Response(JSON.stringify(results), {
+    
+    // Sanitize wa.me and whatsapp.com links out of the website field
+    const sanitizedResults = results.map((l: any) => {
+      let website = l.website || '';
+      let websiteStatus = l.websiteStatus || 'No Website';
+      if (website.includes('wa.me') || website.includes('whatsapp.com') || website.includes('api.whatsapp.com')) {
+        website = '';
+        websiteStatus = 'No Website';
+      }
+      return { ...l, website, websiteStatus };
+    });
+
+    return new Response(JSON.stringify(sanitizedResults), {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: any) {
@@ -89,14 +101,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   try {
     const body = await request.json();
-    const leads: LeadBody[] = Array.isArray(body) ? body : [body];
+    const incomingLeads: LeadBody[] = Array.isArray(body) ? body : [body];
 
-    if (leads.length === 0) {
+    if (incomingLeads.length === 0) {
       await env.DB.prepare("DELETE FROM leads").run();
       return new Response(JSON.stringify({ success: true, count: 0 }), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
+
+    // Sanitize incoming leads to filter out wa.me/whatsapp.com website entries
+    const leads = incomingLeads.map(l => {
+      let website = l.website || '';
+      let websiteStatus = l.websiteStatus || 'No Website';
+      if (website.includes('wa.me') || website.includes('whatsapp.com') || website.includes('api.whatsapp.com')) {
+        website = '';
+        websiteStatus = 'No Website';
+      }
+      return { ...l, website, websiteStatus };
+    });
 
     // Delete any leads from the DB that are NOT in the incoming request payload (keeps deletes in sync)
     const incomingIds = leads.map(l => l.id).filter(Boolean);
