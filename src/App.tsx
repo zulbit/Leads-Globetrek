@@ -166,6 +166,7 @@ export function App() {
   const [activeProject, setActiveProject] = useState<ProjectTag>('Globetrek');
   
   
+  // Cloudflare D1 Cloud SQLite Database Integration Active & Authorized
   const [sessionToken, setSessionToken] = useState<string | null>(() => localStorage.getItem('access_token'));
   const [leads, setLeads] = useState<Lead[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
