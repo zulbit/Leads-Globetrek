@@ -275,7 +275,7 @@ export function App() {
 
   // Sync changes back to D1 Database
   useEffect(() => {
-    if (!isLoadingDB && sessionToken && leads.length > 0) {
+    if (!isLoadingDB && sessionToken) {
       fetch('/api/leads', {
         method: 'POST',
         headers: { 
@@ -290,7 +290,7 @@ export function App() {
   }, [leads, isLoadingDB, sessionToken]);
 
   useEffect(() => {
-    if (!isLoadingDB && sessionToken && tasks.length > 0) {
+    if (!isLoadingDB && sessionToken) {
       fetch('/api/tasks', {
         method: 'POST',
         headers: { 
