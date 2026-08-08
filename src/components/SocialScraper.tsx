@@ -19,6 +19,7 @@ export const SocialScraper: React.FC<SocialScraperProps> = ({
 }) => {
   const [platform, setPlatform] = useState<LeadSource>('Facebook Page');
   const [city, setCity] = useState('Lahore');
+  const [query, setQuery] = useState(activeProject === 'Dreamstay' ? 'Guest Houses & Hotels' : 'Travel Agencies & Tour Operators');
   const [count, setCount] = useState(25);
   const [isScraping, setIsScraping] = useState(false);
   const [scrapedLeads, setScrapedLeads] = useState<Lead[]>([]);
@@ -32,7 +33,7 @@ export const SocialScraper: React.FC<SocialScraperProps> = ({
     try {
       const leads = await scrapeLeadsEngine({
         platform,
-        query: activeProject === 'Dreamstay' ? 'Hotels & Guest Houses' : 'Tour Operators & Travel Clubs',
+        query,
         city,
         count,
         projectTag: activeProject
@@ -76,7 +77,7 @@ export const SocialScraper: React.FC<SocialScraperProps> = ({
 
       {/* Control Card */}
       <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800 shadow-lg space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
           <div>
             <label className="block text-slate-400 font-medium mb-1">Social Media Platform</label>
             <select
@@ -88,6 +89,17 @@ export const SocialScraper: React.FC<SocialScraperProps> = ({
               <option value="Instagram Bio">Instagram Travel Accounts & Bios</option>
               <option value="TikTok Account">TikTok Tour & Travel Creators</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-slate-400 font-medium mb-1">Search Keywords</label>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="e.g. Tour Operator, Resort"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-pink-500"
+            />
           </div>
 
           <div>

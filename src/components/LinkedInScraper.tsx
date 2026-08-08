@@ -69,17 +69,14 @@ export const LinkedInScraper: React.FC<LinkedInScraperProps> = ({
       <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800 shadow-lg space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div>
-            <label className="block text-slate-400 font-medium mb-1">Target Professional Role</label>
-            <select
+            <label className="block text-slate-400 font-medium mb-1">Target Professional Role / Keywords</label>
+            <input
+              type="text"
               value={role}
               onChange={(e) => setRole(e.target.value)}
+              placeholder="e.g. Hotel Manager, Tour Operator Founder"
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-blue-500"
-            >
-              <option value="Hotel Manager">Hotel Manager / General Manager</option>
-              <option value="Guest House Owner">Guest House Owner / Managing Partner</option>
-              <option value="Tour Operator Director">Tour Operator / Travel Agency Founder</option>
-              <option value="Corporate Travel Specialist">Corporate Travel Specialist</option>
-            </select>
+            />
           </div>
 
           <div>

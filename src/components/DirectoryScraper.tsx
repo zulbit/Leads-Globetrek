@@ -19,6 +19,7 @@ export const DirectoryScraper: React.FC<DirectoryScraperProps> = ({
 }) => {
   const [directory, setDirectory] = useState('PakBiz Directory');
   const [city, setCity] = useState('Islamabad');
+  const [query, setQuery] = useState(activeProject === 'Dreamstay' ? 'Guest Houses & Hotels' : 'Travel Agencies & Tour Operators');
   const [isScraping, setIsScraping] = useState(false);
   const [scrapedLeads, setScrapedLeads] = useState<Lead[]>([]);
   const [successMsg, setSuccessMsg] = useState('');
@@ -31,7 +32,7 @@ export const DirectoryScraper: React.FC<DirectoryScraperProps> = ({
     try {
       const leads = await scrapeLeadsEngine({
         platform: directory === 'PakBiz Directory' ? 'PakBiz Directory' : 'YellowPages PK',
-        query: activeProject === 'Dreamstay' ? 'Hotels & Guest Houses' : 'Tourism & Travel Services',
+        query,
         city,
         count: 12,
         projectTag: activeProject
@@ -74,7 +75,7 @@ export const DirectoryScraper: React.FC<DirectoryScraperProps> = ({
 
       {/* Form Controls */}
       <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800 shadow-lg space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div>
             <label className="block text-slate-400 font-medium mb-1">Directory Platform</label>
             <select
@@ -88,8 +89,19 @@ export const DirectoryScraper: React.FC<DirectoryScraperProps> = ({
           </div>
 
           <div>
+            <label className="block text-slate-400 font-medium mb-1">Search Keywords</label>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="e.g. Tour Operator, Car Rental"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+            />
+          </div>
+
+          <div>
             <label className="block text-slate-400 font-medium mb-1 flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-amber-400" /> Target Pakistan City Dropdown
+              <MapPin className="w-3.5 h-3.5 text-amber-400" /> Target Pakistan City
             </label>
             <select
               value={city}
