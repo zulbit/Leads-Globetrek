@@ -71,6 +71,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const body = await request.json();
     const tasks: TaskBody[] = Array.isArray(body) ? body : [body];
 
+    if (tasks.length === 0) {
+      await env.DB.prepare("DELETE FROM tasks").run();
+      return new Response(JSON.stringify({ success: true, count: 0 }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     // Delete any tasks from the DB that are NOT in the incoming request payload (keeps deletes in sync)
     const incomingIds = tasks.map(t => t.id).filter(Boolean);
     if (incomingIds.length > 0) {
