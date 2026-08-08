@@ -117,7 +117,7 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
     setIsGenerating(true);
     setAiError(null);
     try {
-      const sessionToken = localStorage.getItem('passcode_token') || '';
+      const sessionToken = localStorage.getItem('access_token') || '';
       const response = await fetch('/api/generate-pitch', {
         method: 'POST',
         headers: {
