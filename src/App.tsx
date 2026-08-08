@@ -164,6 +164,8 @@ export function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeProject, setActiveProject] = useState<ProjectTag>('Globetrek');
   
+  
+  // Cloudflare D1 Serverless Database Integration Active
   const [leads, setLeads] = useState<Lead[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [isLoadingDB, setIsLoadingDB] = useState(true);
