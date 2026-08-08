@@ -92,6 +92,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const leads: LeadBody[] = Array.isArray(body) ? body : [body];
 
     if (leads.length === 0) {
+      await env.DB.prepare("DELETE FROM leads").run();
       return new Response(JSON.stringify({ success: true, count: 0 }), {
         headers: { 'Content-Type': 'application/json' }
       });
