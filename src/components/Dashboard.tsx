@@ -39,6 +39,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigateToTab,
   onQuickWhatsApp
 }) => {
+  const [hoveredRegion, setHoveredRegion] = React.useState<string | null>(null);
+  const [selectedRegion, setSelectedRegion] = React.useState<string | null>(null);
+
+  const getProvinceFromCity = (city: string): string => {
+    const c = (city || '').toLowerCase();
+    if (c.includes('karachi') || c.includes('hyderabad') || c.includes('sukkur') || c.includes('sindh')) return 'Sindh';
+    if (
+      c.includes('lahore') || c.includes('multan') || c.includes('faisalabad') || 
+      c.includes('rawalpindi') || c.includes('sialkot') || c.includes('gujranwala') || 
+      c.includes('gujrat') || c.includes('murree') || c.includes('punjab') || 
+      c.includes('sheikhupura')
+    ) return 'Punjab';
+    if (
+      c.includes('peshawar') || c.includes('swat') || c.includes('kalam') || 
+      c.includes('malam jabba') || c.includes('dir') || c.includes('chitral') || 
+      c.includes('abbottabad') || c.includes('kpk') || c.includes('naran') || 
+      c.includes('kaghan') || c.includes('malakand') || c.includes('mardan')
+    ) return 'Khyber Pakhtunkhwa';
+    if (c.includes('quetta') || c.includes('gwadar') || c.includes('balochistan') || c.includes('chaman')) return 'Balochistan';
+    if (c.includes('gilgit') || c.includes('skardu') || c.includes('hunza') || c.includes('baltistan') || c.includes('nagar') || c.includes('ghizer')) return 'Gilgit-Baltistan';
+    if (c.includes('muzaffarabad') || c.includes('mirpur') || c.includes('kashmir') || c.includes('ajk') || c.includes('poonch')) return 'Azad Kashmir';
+    if (c.includes('islamabad') || c.includes('capital')) return 'Islamabad';
+    return 'Other';
+  };
+
   const filteredLeads = leads.filter(l => l.projectTag === activeProject || activeProject === 'General');
   const filteredLogs = whatsappLogs.filter(l => l.projectTag === activeProject || activeProject === 'General');
 
@@ -49,17 +74,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
   
   const qualifiedCount = filteredLeads.filter(l => l.outreachStatus === 'Qualified' || l.outreachStatus === 'Converted').length;
 
-  // City breakdown
-  const cityCounts: { [key: string]: number } = {};
+  const provinceCounts: { [key: string]: number } = {
+    'Punjab': 0,
+    'Sindh': 0,
+    'Khyber Pakhtunkhwa': 0,
+    'Gilgit-Baltistan': 0,
+    'Balochistan': 0,
+    'Azad Kashmir': 0,
+    'Islamabad': 0
+  };
+
   filteredLeads.forEach(l => {
-    const city = l.city || 'Other PK';
-    cityCounts[city] = (cityCounts[city] || 0) + 1;
+    const prov = getProvinceFromCity(l.city);
+    if (provinceCounts[prov] !== undefined) {
+      provinceCounts[prov]++;
+    }
   });
 
-  const cityChartData = Object.keys(cityCounts).map(city => ({
-    city,
-    leads: cityCounts[city]
-  })).sort((a, b) => b.leads - a.leads).slice(0, 7);
+  const maxProvinceCount = Math.max(...Object.values(provinceCounts), 1);
+  const totalProvinceLeads = Object.values(provinceCounts).reduce((a, b) => a + b, 0);
+
+  const displayLeads = selectedRegion 
+    ? filteredLeads.filter(l => getProvinceFromCity(l.city) === selectedRegion)
+    : filteredLeads;
 
   // Source breakdown
   const sourceCounts: { [key: string]: number } = {};
@@ -74,6 +111,51 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }));
 
   const COLORS = ['#14b8a6', '#f97316', '#3b82f6', '#8b5cf6', '#ec4899', '#10b981'];
+
+  const regions = [
+    {
+      id: 'balochistan',
+      name: 'Balochistan',
+      path: 'M 40 230 L 120 220 L 140 170 L 170 200 L 180 270 L 150 310 L 110 320 L 70 290 Z',
+      centerX: 100,
+      centerY: 240
+    },
+    {
+      id: 'sindh',
+      name: 'Sindh',
+      path: 'M 150 310 L 180 270 L 200 260 L 230 270 L 230 320 L 200 350 L 160 350 Z',
+      centerX: 190,
+      centerY: 310
+    },
+    {
+      id: 'punjab',
+      name: 'Punjab',
+      path: 'M 140 170 L 180 160 L 210 140 L 250 140 L 260 180 L 250 230 L 230 270 L 200 260 L 180 270 L 170 200 Z',
+      centerX: 215,
+      centerY: 200
+    },
+    {
+      id: 'kpk',
+      name: 'Khyber Pakhtunkhwa',
+      path: 'M 120 220 L 100 130 L 140 70 L 165 90 L 165 130 L 180 160 L 140 170 Z',
+      centerX: 140,
+      centerY: 140
+    },
+    {
+      id: 'gb',
+      name: 'Gilgit-Baltistan',
+      path: 'M 140 70 L 185 20 L 240 20 L 265 50 Z',
+      centerX: 200,
+      centerY: 40
+    },
+    {
+      id: 'ajk',
+      name: 'Azad Kashmir',
+      path: 'M 165 90 L 215 95 L 210 140 L 180 160 L 165 130 Z',
+      centerX: 195,
+      centerY: 120
+    }
+  ];
 
   return (
     <div className="space-y-6">
@@ -177,40 +259,156 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-3xl font-extrabold text-white">{Object.keys(cityCounts).length}</span>
+            <span className="text-3xl font-extrabold text-white">{Object.keys(provinceCounts).filter(p => provinceCounts[p] > 0).length}</span>
             <span className="text-xs text-slate-400 ml-2">Regions Covered</span>
           </div>
           <div className="mt-2 text-[11px] text-slate-400">
-            Top Region: <strong className="text-blue-400">{cityChartData[0]?.city || 'Lahore'}</strong>
+            Top Region: <strong className="text-blue-400">
+              {Object.keys(provinceCounts).reduce((a, b) => provinceCounts[a] > provinceCounts[b] ? a : b, 'Sindh')}
+            </strong>
           </div>
         </div>
       </div>
 
       {/* Analytics Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* City Breakdown Bar Chart */}
-        <div className="lg:col-span-2 bg-slate-900/80 p-6 rounded-2xl border border-slate-800/80 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
+        
+        {/* Interactive Pakistan Regional Lead Heatmap Widget */}
+        <div className="lg:col-span-2 bg-slate-900/80 p-6 rounded-2xl border border-slate-800/80 shadow-lg flex flex-col space-y-4 justify-between relative overflow-hidden">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div>
-              <h3 className="font-bold text-white text-base">Pakistan Regional Lead Volume</h3>
-              <p className="text-xs text-slate-400">Top cities scraped for {activeProject}</p>
+              <h3 className="font-bold text-white text-base">Pakistan Regional Lead Heatmap</h3>
+              <p className="text-xs text-slate-400">Click a region to filter lead listings dynamically</p>
             </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700">
-              PK Markets
-            </span>
+            <div className="flex items-center gap-2">
+              {selectedRegion && (
+                <button
+                  onClick={() => setSelectedRegion(null)}
+                  className="px-2 py-0.5 rounded text-[10px] bg-slate-800 border border-slate-700 text-teal-400 hover:text-teal-300 font-semibold"
+                >
+                  Clear Filter
+                </button>
+              )}
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-950 text-teal-400 border border-slate-700/60 font-mono">
+                {totalProvinceLeads} Leads
+              </span>
+            </div>
           </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={cityChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="city" stroke="#94a3b8" fontSize={12} />
-                <YAxis stroke="#94a3b8" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#fff' }} 
-                />
-                <Bar dataKey="leads" fill="#14b8a6" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
+            
+            {/* Interactive SVG outline map of Pakistan */}
+            <div className="md:col-span-3 flex justify-center relative bg-slate-950/60 rounded-xl p-4 border border-slate-850">
+              <svg 
+                viewBox="0 0 320 390" 
+                className="w-full max-h-72 select-none filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+              >
+                {/* Rendering Provinces paths */}
+                {regions.map((reg) => {
+                  const count = provinceCounts[reg.name] || 0;
+                  const ratio = count / maxProvinceCount;
+                  const isHovered = hoveredRegion === reg.name;
+                  const isSelected = selectedRegion === reg.name;
+
+                  // Define dynamic fill color based on lead count density
+                  let fill = 'rgb(30, 41, 59)'; // Default empty gray
+                  if (count > 0) {
+                    const opacityVal = 0.2 + ratio * 0.7;
+                    fill = `rgba(20, 184, 166, ${opacityVal})`;
+                  }
+
+                  return (
+                    <path
+                      key={reg.id}
+                      d={reg.path}
+                      fill={fill}
+                      stroke={isSelected ? '#14b8a6' : isHovered ? '#2dd4bf' : '#334155'}
+                      strokeWidth={isSelected ? 3.5 : isHovered ? 2.5 : 1.5}
+                      className="transition-all duration-200 cursor-pointer"
+                      style={{
+                        filter: isSelected ? 'drop-shadow(0 0 6px rgba(20, 184, 166, 0.6))' : ''
+                      }}
+                      onMouseEnter={() => setHoveredRegion(reg.name)}
+                      onMouseLeave={() => setHoveredRegion(null)}
+                      onClick={() => setSelectedRegion(selectedRegion === reg.name ? null : reg.name)}
+                    />
+                  );
+                })}
+
+                {/* Islamabad Capital Dot Indicator */}
+                {(() => {
+                  const count = provinceCounts['Islamabad'] || 0;
+                  const isHovered = hoveredRegion === 'Islamabad';
+                  const isSelected = selectedRegion === 'Islamabad';
+                  return (
+                    <circle
+                      cx="205"
+                      cy="145"
+                      r={isSelected ? 7 : isHovered ? 6 : 4.5}
+                      fill={count > 0 ? '#14b8a6' : '#64748b'}
+                      stroke={isSelected ? '#fff' : '#0f172a'}
+                      strokeWidth={1.5}
+                      className="transition-all duration-200 cursor-pointer animate-pulse"
+                      onMouseEnter={() => setHoveredRegion('Islamabad')}
+                      onMouseLeave={() => setHoveredRegion(null)}
+                      onClick={() => setSelectedRegion(selectedRegion === 'Islamabad' ? null : 'Islamabad')}
+                    />
+                  );
+                })()}
+              </svg>
+
+              {/* Floating Map Hover Tooltip */}
+              {hoveredRegion && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-slate-700/80 px-3 py-1.5 rounded-lg shadow-xl text-center text-[10px] pointer-events-none transition-all z-10">
+                  <div className="font-bold text-white text-[11px]">{hoveredRegion}</div>
+                  <div className="text-teal-400 font-medium font-mono mt-0.5">
+                    {provinceCounts[hoveredRegion] || 0} Leads ({totalProvinceLeads > 0 ? Math.round(((provinceCounts[hoveredRegion] || 0)/totalProvinceLeads)*100) : 0}%)
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Density progress breakdown list on the right */}
+            <div className="md:col-span-2 space-y-3 text-xs">
+              <h4 className="font-semibold text-slate-300 text-[11px] uppercase tracking-wider pb-1 border-b border-slate-800">
+                Density Breakdown
+              </h4>
+              <div className="space-y-2.5">
+                {Object.keys(provinceCounts)
+                  .sort((a, b) => provinceCounts[b] - provinceCounts[a])
+                  .map((prov) => {
+                    const count = provinceCounts[prov];
+                    const percent = totalProvinceLeads > 0 ? Math.round((count / totalProvinceLeads) * 100) : 0;
+                    const isSelected = selectedRegion === prov;
+
+                    return (
+                      <div 
+                        key={prov} 
+                        onClick={() => setSelectedRegion(selectedRegion === prov ? null : prov)}
+                        className={`p-2 rounded-lg border cursor-pointer transition-all ${
+                          isSelected 
+                            ? 'bg-teal-950/40 border-teal-500/40 shadow' 
+                            : 'bg-slate-950/40 border-transparent hover:bg-slate-900'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center text-[11px] mb-1">
+                          <span className="font-medium text-slate-300 flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${count > 0 ? 'bg-teal-400' : 'bg-slate-700'}`} />
+                            {prov}
+                          </span>
+                          <span className="font-bold text-white font-mono">{count} <span className="text-[10px] text-slate-500 font-normal">({percent}%)</span></span>
+                        </div>
+                        <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-gradient-to-r from-teal-500 to-teal-400 h-full rounded-full transition-all duration-500"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -257,8 +455,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800/80 shadow-lg space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-bold text-white text-base">Recent Pakistan Business Leads</h3>
-            <p className="text-xs text-slate-400">Scraped for {activeProject} outreach campaign</p>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-white text-base">Recent Pakistan Business Leads</h3>
+              {selectedRegion && (
+                <span className="text-[10px] px-2 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-800 flex items-center gap-1 font-semibold">
+                  Region: {selectedRegion}
+                  <button onClick={() => setSelectedRegion(null)} className="hover:text-white ml-1 text-slate-400 font-bold text-xs">×</button>
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-400">Scraped for {activeProject} outreach campaign{selectedRegion ? ` in ${selectedRegion}` : ''}</p>
           </div>
           <button
             onClick={() => onNavigateToTab('leads')}
@@ -282,7 +488,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {filteredLeads.slice(0, 6).map((lead) => (
+              {displayLeads.slice(0, 6).map((lead) => (
                 <tr key={lead.id} className="hover:bg-slate-800/40 transition-colors">
                   <td className="py-3 px-4 font-semibold text-white">
                     {lead.title}
