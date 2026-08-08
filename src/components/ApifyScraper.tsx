@@ -12,8 +12,10 @@ interface ApifyScraperProps {
 }
 
 const PAKISTAN_CITIES = [
-  'Lahore', 'Karachi', 'Islamabad', 'Murree', 'Hunza', 'Skardu', 
-  'Peshawar', 'Faisalabad', 'Multan', 'Rawalpindi', 'Swat', 'Gilgit'
+  'Abbottabad', 'Ayubia', 'Bahawalpur', 'Chitral', 'Dir', 'Faisalabad', 'Gilgit', 'Gujranwala', 'Gujrat', 
+  'Hunza', 'Hyderabad', 'Islamabad', 'Jhang', 'Kaghan', 'Karachi', 'Lahore', 'Larkana', 'Malakand', 'Malam Jabba', 
+  'Multan', 'Murree', 'Naran', 'Nathia Gali', 'Peshawar', 'Quetta', 'Rahim Yar Khan', 'Rawalpindi', 
+  'Sahiwal', 'Sargodha', 'Sheikhupura', 'Shogran', 'Sialkot', 'Skardu', 'Sukkur', 'Swat'
 ];
 
 const DREAMSTAY_PRESET_TERMS = [
@@ -303,15 +305,19 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
               <label className="block text-slate-400 font-medium mb-1 flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-teal-400" /> Target Pakistan City
               </label>
-              <select
+              <input
+                type="text"
+                list="apify-cities"
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-teal-500"
-              >
+                placeholder="Type or select a city..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-teal-500 font-medium"
+              />
+              <datalist id="apify-cities">
                 {PAKISTAN_CITIES.map(c => (
-                  <option key={c} value={c}>{c}, Pakistan</option>
+                  <option key={c} value={c} />
                 ))}
-              </select>
+              </datalist>
             </div>
 
             {/* Target Search Category */}

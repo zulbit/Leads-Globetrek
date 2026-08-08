@@ -9,7 +9,12 @@ interface GoogleMapsScraperProps {
   onLogScraperTask?: (query: string, city: string, platform: string) => void;
 }
 
-const PK_CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Murree', 'Skardu', 'Hunza', 'Faisalabad', 'Peshawar', 'Multan', 'Rawalpindi', 'Swat', 'Gilgit', 'Chitral', 'Abbottabad'];
+const PK_CITIES = [
+  'Abbottabad', 'Ayubia', 'Bahawalpur', 'Chitral', 'Dir', 'Faisalabad', 'Gilgit', 'Gujranwala', 'Gujrat', 
+  'Hunza', 'Hyderabad', 'Islamabad', 'Jhang', 'Kaghan', 'Karachi', 'Lahore', 'Larkana', 'Malakand', 'Malam Jabba', 
+  'Multan', 'Murree', 'Naran', 'Nathia Gali', 'Peshawar', 'Quetta', 'Rahim Yar Khan', 'Rawalpindi', 
+  'Sahiwal', 'Sargodha', 'Sheikhupura', 'Shogran', 'Sialkot', 'Skardu', 'Sukkur', 'Swat'
+];
 
 export const GoogleMapsScraper: React.FC<GoogleMapsScraperProps> = ({
   activeProject,
@@ -77,15 +82,19 @@ export const GoogleMapsScraper: React.FC<GoogleMapsScraperProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div>
             <label className="block text-slate-400 font-medium mb-1">Target Pakistan City</label>
-            <select
+            <input
+              type="text"
+              list="gmaps-cities"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-teal-500"
-            >
+              placeholder="Type or select a city..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-teal-500 font-medium"
+            />
+            <datalist id="gmaps-cities">
               {PK_CITIES.map(c => (
-                <option key={c} value={c}>{c}, Pakistan</option>
+                <option key={c} value={c} />
               ))}
-            </select>
+            </datalist>
           </div>
 
           <div>

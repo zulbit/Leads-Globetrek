@@ -9,8 +9,10 @@ interface SocialScraperProps {
 }
 
 const PAKISTAN_CITIES = [
-  'Lahore', 'Karachi', 'Islamabad', 'Murree', 'Skardu', 'Hunza', 
-  'Peshawar', 'Rawalpindi', 'Faisalabad', 'Multan', 'Swat', 'Gilgit'
+  'Abbottabad', 'Ayubia', 'Bahawalpur', 'Chitral', 'Dir', 'Faisalabad', 'Gilgit', 'Gujranwala', 'Gujrat', 
+  'Hunza', 'Hyderabad', 'Islamabad', 'Jhang', 'Kaghan', 'Karachi', 'Lahore', 'Larkana', 'Malakand', 'Malam Jabba', 
+  'Multan', 'Murree', 'Naran', 'Nathia Gali', 'Peshawar', 'Quetta', 'Rahim Yar Khan', 'Rawalpindi', 
+  'Sahiwal', 'Sargodha', 'Sheikhupura', 'Shogran', 'Sialkot', 'Skardu', 'Sukkur', 'Swat'
 ];
 
 export const SocialScraper: React.FC<SocialScraperProps> = ({
@@ -106,15 +108,19 @@ export const SocialScraper: React.FC<SocialScraperProps> = ({
             <label className="block text-slate-400 font-medium mb-1 flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5 text-pink-400" /> Target Pakistan City
             </label>
-            <select
+            <input
+              type="text"
+              list="social-cities"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-pink-500"
-            >
+              placeholder="Type or select a city..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-pink-500 font-medium"
+            />
+            <datalist id="social-cities">
               {PAKISTAN_CITIES.map(c => (
-                <option key={c} value={c}>{c}, Pakistan</option>
+                <option key={c} value={c} />
               ))}
-            </select>
+            </datalist>
           </div>
 
           <div>

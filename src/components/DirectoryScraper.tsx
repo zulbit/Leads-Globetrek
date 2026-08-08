@@ -9,8 +9,10 @@ interface DirectoryScraperProps {
 }
 
 const PAKISTAN_CITIES = [
-  'Islamabad', 'Lahore', 'Karachi', 'Murree', 'Skardu', 'Hunza', 
-  'Peshawar', 'Rawalpindi', 'Faisalabad', 'Multan', 'Swat', 'Gilgit', 'Chitral', 'Abbottabad'
+  'Abbottabad', 'Ayubia', 'Bahawalpur', 'Chitral', 'Dir', 'Faisalabad', 'Gilgit', 'Gujranwala', 'Gujrat', 
+  'Hunza', 'Hyderabad', 'Islamabad', 'Jhang', 'Kaghan', 'Karachi', 'Lahore', 'Larkana', 'Malakand', 'Malam Jabba', 
+  'Multan', 'Murree', 'Naran', 'Nathia Gali', 'Peshawar', 'Quetta', 'Rahim Yar Khan', 'Rawalpindi', 
+  'Sahiwal', 'Sargodha', 'Sheikhupura', 'Shogran', 'Sialkot', 'Skardu', 'Sukkur', 'Swat'
 ];
 
 export const DirectoryScraper: React.FC<DirectoryScraperProps> = ({
@@ -103,15 +105,19 @@ export const DirectoryScraper: React.FC<DirectoryScraperProps> = ({
             <label className="block text-slate-400 font-medium mb-1 flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5 text-amber-400" /> Target Pakistan City
             </label>
-            <select
+            <input
+              type="text"
+              list="directory-cities"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-            >
+              placeholder="Type or select a city..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 font-medium"
+            />
+            <datalist id="directory-cities">
               {PAKISTAN_CITIES.map(c => (
-                <option key={c} value={c}>{c}, Pakistan</option>
+                <option key={c} value={c} />
               ))}
-            </select>
+            </datalist>
           </div>
         </div>
 
