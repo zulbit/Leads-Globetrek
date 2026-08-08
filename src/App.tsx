@@ -164,21 +164,9 @@ export function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeProject, setActiveProject] = useState<ProjectTag>('Globetrek');
   
-  const [leads, setLeads] = useState<Lead[]>(() => {
-    const saved = localStorage.getItem('scraped_leads');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
-    }
-    return INITIAL_LEADS;
-  });
-
-  const [tasks, setTasks] = useState<TaskItem[]>(() => {
-    const saved = localStorage.getItem('scraped_tasks');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
-    }
-    return INITIAL_TASKS;
-  });
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [isLoadingDB, setIsLoadingDB] = useState(true);
 
   const [apifyConfig, setApifyConfig] = useState<ApifyConfig>(() => {
     const saved = localStorage.getItem('apify_config');
@@ -208,15 +196,7 @@ export function App() {
     };
   });
 
-  // Sync state to localStorage on changes
-  useEffect(() => {
-    localStorage.setItem('scraped_leads', JSON.stringify(leads));
-  }, [leads]);
-
-  useEffect(() => {
-    localStorage.setItem('scraped_tasks', JSON.stringify(tasks));
-  }, [tasks]);
-
+  // Sync configs to localStorage
   useEffect(() => {
     localStorage.setItem('apify_config', JSON.stringify(apifyConfig));
   }, [apifyConfig]);
@@ -224,6 +204,76 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('whatsapp_config', JSON.stringify(whatsAppConfig));
   }, [whatsAppConfig]);
+
+  // Load leads & tasks from Cloudflare D1 Database on mount
+  useEffect(() => {
+    const initDatabase = async () => {
+      try {
+        const leadsRes = await fetch('/api/leads');
+        let initialLeadsList = [];
+        if (leadsRes.ok) {
+          const data = await leadsRes.json();
+          if (Array.isArray(data) && data.length > 0) {
+            initialLeadsList = data;
+          } else {
+            // D1 is empty, bootstrap with INITIAL_LEADS
+            await fetch('/api/leads', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(INITIAL_LEADS)
+            });
+            initialLeadsList = INITIAL_LEADS;
+          }
+        }
+        setLeads(initialLeadsList);
+
+        const tasksRes = await fetch('/api/tasks');
+        let initialTasksList = [];
+        if (tasksRes.ok) {
+          const data = await tasksRes.json();
+          if (Array.isArray(data) && data.length > 0) {
+            initialTasksList = data;
+          } else {
+            // D1 is empty, bootstrap with INITIAL_TASKS
+            await fetch('/api/tasks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(INITIAL_TASKS)
+            });
+            initialTasksList = INITIAL_TASKS;
+          }
+        }
+        setTasks(initialTasksList);
+
+      } catch (err) {
+        console.error("Failed to fetch leads or tasks from D1 database", err);
+      } finally {
+        setIsLoadingDB(false);
+      }
+    };
+    initDatabase();
+  }, []);
+
+  // Sync changes back to D1 Database
+  useEffect(() => {
+    if (!isLoadingDB) {
+      fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(leads)
+      }).catch(err => console.error("Leads D1 sync failed", err));
+    }
+  }, [leads, isLoadingDB]);
+
+  useEffect(() => {
+    if (!isLoadingDB) {
+      fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tasks)
+      }).catch(err => console.error("Tasks D1 sync failed", err));
+    }
+  }, [tasks, isLoadingDB]);
 
   const [activeWhatsAppLead, setActiveWhatsAppLead] = useState<Lead | null>(null);
   const [quickMsgText, setQuickMsgText] = useState('');

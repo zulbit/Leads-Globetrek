@@ -1,0 +1,7 @@
+name = "leads-globetrek"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "leads-globetrek-db"
+database_id = "491578f7-0e7c-474d-98fb-7c76ca3bc7e1"
