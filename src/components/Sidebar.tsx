@@ -12,7 +12,8 @@ import {
   Globe2, 
   Sparkles,
   Server,
-  Share2
+  Share2,
+  X
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -22,6 +23,8 @@ interface SidebarProps {
   setActiveProject: (proj: ProjectTag) => void;
   totalLeadsCount: number;
   whatsAppCount: number;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -30,7 +33,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeProject,
   setActiveProject,
   totalLeadsCount,
-  whatsAppCount
+  whatsAppCount,
+  isMobileOpen = false,
+  onCloseMobile
 }) => {
   const navSections = [
     {
@@ -60,24 +65,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-72 bg-slate-900 border-r border-slate-800/80 flex flex-col justify-between h-screen sticky top-0 z-50 flex-shrink-0">
+    <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 border-r border-slate-800/80 flex flex-col justify-between h-screen transition-transform duration-300 transform ${
+      isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+    } md:translate-x-0 md:static md:flex-shrink-0`}>
       <div className="p-4 space-y-6 overflow-y-auto scrollbar-thin">
         {/* Brand Header */}
-        <div className="flex items-center gap-3 px-2 py-1 border-b border-slate-800/80 pb-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-orange-500 p-0.5 shadow-lg shadow-teal-500/10">
-            <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-              <Globe2 className="w-5 h-5 text-teal-400" />
+        <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-orange-500 p-0.5 shadow-lg shadow-teal-500/10">
+              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                <Globe2 className="w-5 h-5 text-teal-400" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-extrabold text-base text-white tracking-tight">PK Lead Engine</h1>
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-teal-950 text-teal-300 border border-teal-800/50">
+                  PRO
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">Scraper & Outreach SaaS</p>
             </div>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-extrabold text-base text-white tracking-tight">PK Lead Engine</h1>
-              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-teal-950 text-teal-300 border border-teal-800/50">
-                PRO
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400">Scraper & Outreach SaaS</p>
-          </div>
+          
+          {/* Close button for mobile */}
+          <button 
+            onClick={onCloseMobile}
+            className="md:hidden p-1 text-slate-400 hover:text-white border border-slate-800 rounded-lg"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Project Target Switcher (Dreamstay vs Globetrek) */}
@@ -124,7 +141,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      if (onCloseMobile) onCloseMobile();
+                    }}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                       isActive
                         ? 'bg-gradient-to-r from-teal-500/20 to-teal-500/10 text-teal-300 border border-teal-500/30 shadow-md shadow-teal-500/5'

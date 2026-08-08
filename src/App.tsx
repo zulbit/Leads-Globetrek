@@ -12,7 +12,7 @@ import { OutreachCenter } from './components/OutreachCenter';
 import { TaskManager } from './components/TaskManager';
 import { Lead, ApifyConfig, WhatsAppConfig, TaskItem, ProjectTag } from './types/scraper';
 import { sendWhatsAppMessage, formatPakistanPhone } from './services/whatsappService';
-import { Send, X, Globe2 } from 'lucide-react';
+import { Send, X, Globe2, Menu } from 'lucide-react';
 
 // ⚠️ DEMO DATA — Pre-loaded samples for UI demonstration only.
 // Business names, websites, and addresses are real/public. Phone numbers, emails,
@@ -398,6 +398,7 @@ export function App() {
 
   const totalLeadsCount = leads.filter(l => activeProject === 'General' || l.projectTag === activeProject).length;
   const whatsAppCount = leads.filter(l => (activeProject === 'General' || l.projectTag === activeProject) && l.outreachStatus === 'WhatsApp Sent').length;
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   if (!sessionToken) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
@@ -405,6 +406,14 @@ export function App() {
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100 font-['Plus_Jakarta_Sans',sans-serif] selection:bg-teal-500 selection:text-white">
+      {/* Mobile Sidebar Overlay Backdrop */}
+      {isMobileSidebarOpen && (
+        <div 
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 md:hidden transition-all duration-300"
+        />
+      )}
+
       {/* Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
@@ -413,28 +422,37 @@ export function App() {
         setActiveProject={setActiveProject}
         totalLeadsCount={totalLeadsCount}
         whatsAppCount={whatsAppCount}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main View Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Breadcrumb Bar */}
-        <header className="bg-slate-900/60 border-b border-slate-800/80 px-8 py-4 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md">
+        <header className="bg-slate-900/60 border-b border-slate-800/80 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md">
           <div className="flex items-center gap-3">
+            {/* Hamburger menu button for mobile screens */}
+            <button 
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="md:hidden p-1.5 text-slate-400 hover:text-white border border-slate-800 rounded-xl bg-slate-900"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <Globe2 className="w-4 h-4 text-teal-400" />
-            <span className="text-xs text-slate-400">PK Lead Engine</span>
-            <span className="text-slate-600">/</span>
+            <span className="text-xs text-slate-400 hidden sm:inline">PK Lead Engine</span>
+            <span className="text-slate-600 hidden sm:inline">/</span>
             <span className="text-xs font-bold text-white capitalize">{activeTab.replace('-', ' ')}</span>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">Targeting:</span>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+              <span className="text-xs text-slate-400 hidden xs:inline">Targeting:</span>
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                 activeProject === 'Dreamstay' 
                   ? 'bg-teal-950 text-teal-300 border border-teal-800' 
                   : 'bg-orange-950 text-orange-300 border border-orange-800'
               }`}>
-                {activeProject} Pakistan
+                {activeProject}
               </span>
             </div>
             <button 
@@ -446,7 +464,7 @@ export function App() {
           </div>
         </header>
 
-        <main className="flex-1 p-8 space-y-6 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-8 space-y-6 overflow-y-auto">
           {activeTab === 'dashboard' && (
             <Dashboard
               leads={leads}
