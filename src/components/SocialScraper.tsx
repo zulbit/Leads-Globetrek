@@ -27,11 +27,13 @@ export const SocialScraper: React.FC<SocialScraperProps> = ({
   const [scrapedLeads, setScrapedLeads] = useState<Lead[]>([]);
   const [successMsg, setSuccessMsg] = useState('');
   const [scrapeError, setScrapeError] = useState<string | null>(null);
+  const [scrapeSuccess, setScrapeSuccess] = useState<{ runId: string; city: string; query: string; count: number } | null>(null);
 
   const handleScrapeSocial = async () => {
     setIsScraping(true);
     setSuccessMsg('');
     setScrapeError(null);
+    setScrapeSuccess(null);
     try {
       const leads = await scrapeLeadsEngine({
         platform,
@@ -41,11 +43,19 @@ export const SocialScraper: React.FC<SocialScraperProps> = ({
         projectTag: activeProject
       });
 
-      setScrapedLeads(leads);
-      onLeadsScraped(leads);
       if (leads.length === 0) {
         setScrapeError('No results. Please configure your Apify API token in the Apify Cloud tab.');
+      } else if (leads[0]?.id === 'async_trigger_success') {
+        setScrapeSuccess({
+          runId: leads[0].title,
+          city,
+          query,
+          count
+        });
+        setScrapedLeads([]);
       } else {
+        setScrapedLeads(leads);
+        onLeadsScraped(leads);
         setSuccessMsg(`Extracted ${leads.length} social business leads from ${platform} (${city}) for ${activeProject}!`);
       }
     } catch (err: any) {
@@ -154,6 +164,25 @@ export const SocialScraper: React.FC<SocialScraperProps> = ({
             </>
           )}
         </button>
+
+        {/* Asynchronous Trigger Success Card */}
+        {scrapeSuccess && (
+          <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-5 shadow-lg flex items-start gap-4 transition-all">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 animate-pulse">
+              <CheckCircle2 className="w-4.5 h-4.5" />
+            </div>
+            <div className="space-y-1 text-xs">
+              <h4 className="text-xs font-bold text-white">🚀 Scraper Task Dispatched to Apify Cloud!</h4>
+              <p className="text-emerald-300 font-medium">
+                Successfully launched async extraction of <strong>{scrapeSuccess.count} leads</strong> from <strong>{platform}</strong> for <strong>"{scrapeSuccess.query}"</strong> in <strong>{scrapeSuccess.city}</strong>.
+              </p>
+              <div className="pt-2 flex flex-col gap-1 text-[10px] text-slate-400">
+                <div>• <strong>Apify Run ID:</strong> <code className="text-slate-200 bg-slate-950 px-1.5 py-0.5 rounded text-[9px] font-mono">{scrapeSuccess.runId}</code></div>
+                <div>• <strong>Auto-Import Webhook:</strong> Active. Leads will automatically stream directly into your database.</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {successMsg && (
           <div className="p-3 bg-emerald-950/80 border border-emerald-800 rounded-xl text-emerald-300 text-xs flex items-center gap-2">

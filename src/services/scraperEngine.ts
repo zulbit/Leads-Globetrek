@@ -22,6 +22,7 @@ export interface ScrapeParams {
  */
 export const scrapeLeadsEngine = async (params: ScrapeParams): Promise<Lead[]> => {
   const token = params.apifyToken || localStorage.getItem('apify_api_token') || '';
+  const secretToken = localStorage.getItem('access_token') || '';
 
   if (!token.trim()) {
     // No token — return empty. The UI will show a configuration prompt.
@@ -32,8 +33,11 @@ export const scrapeLeadsEngine = async (params: ScrapeParams): Promise<Lead[]> =
   const searchQuery = `${params.query} in ${params.city}, Pakistan`;
 
   try {
+    const webhookUrl = `https://leads-globetrek.pages.dev/api/apify-webhook?secret=${encodeURIComponent(secretToken)}&projectTag=${encodeURIComponent(params.projectTag)}&city=${encodeURIComponent(params.city)}&query=${encodeURIComponent(params.query)}&platform=${encodeURIComponent(params.platform)}`;
+
+    // Call the ASYNC run endpoint to avoid 5-minute HTTP timeouts
     const response = await fetch(
-      `https://api.apify.com/v2/actors/compass~crawler-google-places/run-sync-get-dataset-items?token=${encodeURIComponent(token.trim())}`,
+      `https://api.apify.com/v2/actors/compass~crawler-google-places/runs?token=${encodeURIComponent(token.trim())}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,7 +45,13 @@ export const scrapeLeadsEngine = async (params: ScrapeParams): Promise<Lead[]> =
           searchStringsArray: [searchQuery],
           maxCrawledPlacesPerSearch: params.count,
           language: 'en',
-          extractEmail: true
+          extractEmail: true,
+          webhooks: [
+            {
+              eventTypes: ['ACTOR.RUN.SUCCEEDED'],
+              requestUrl: webhookUrl
+            }
+          ]
         })
       }
     );
@@ -51,56 +61,32 @@ export const scrapeLeadsEngine = async (params: ScrapeParams): Promise<Lead[]> =
       throw new Error(`Apify API returned ${response.status}: ${errText}`);
     }
 
-    const items = await response.json();
+    const runData = await response.json() as any;
+    const runId = runData.data?.id || '';
 
-    if (!Array.isArray(items) || items.length === 0) {
-      return [];
-    }
-
-    const leads: Lead[] = [];
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const rawPhone = item.phone || item.phoneUnformatted || '';
-      const formattedPhone = formatPakistanPhone(rawPhone);
-      const websiteUrl = item.website || '';
-
-      // Use backend for real health check if URL exists
-      let websiteStatus = 'No Website' as any;
-      if (websiteUrl) {
-        try {
-          websiteStatus = await checkWebsiteHealth(websiteUrl);
-        } catch {
-          websiteStatus = 'Reachable (status unverified)';
-        }
-      }
-
-      leads.push({
-        id: `apify_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 4)}`,
-        title: item.title || item.name || '',
-        contactPerson: item.ownerName || '',
-        phone: formattedPhone,
-        whatsapp: formattedPhone,
-        email: item.email || item.emails?.[0] || '',
-        website: websiteUrl,
-        websiteStatus,
-        address: item.address || item.street || `${params.city}, Pakistan`,
-        city: item.city || params.city,
+    // Return a special single lead representing the asynchronous trigger success
+    return [
+      {
+        id: 'async_trigger_success',
+        title: runId, // Pass the runId in title so UI can show it
+        contactPerson: '',
+        phone: '',
+        whatsapp: '',
+        email: '',
+        website: '',
+        address: '',
+        city: params.city,
         country: 'Pakistan',
-        category: item.categoryName || item.category || params.query,
-        rating: item.totalScore || item.rating || undefined,
-        reviewsCount: item.reviewsCount || item.userRatingsTotal || undefined,
+        category: params.query,
         source: params.platform,
         projectTag: params.projectTag,
         outreachStatus: 'New',
         createdAt: new Date().toISOString()
-      });
-    }
-
-    return leads;
+      }
+    ];
 
   } catch (error: any) {
-    console.error('Apify Scraper Error:', error);
-    throw new Error(`Scraping failed: ${error.message}`);
+    console.error('Apify Scraper Trigger Error:', error);
+    throw new Error(`Scraping trigger failed: ${error.message}`);
   }
 };

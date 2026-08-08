@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Lead, ProjectTag } from '../types/scraper';
 import { scrapeLeadsEngine } from '../services/scraperEngine';
-import { Linkedin, Search, Sparkles, Loader2, UserCheck, MapPin } from 'lucide-react';
+import { Linkedin, Search, Sparkles, Loader2, UserCheck, MapPin, CheckCircle2 } from 'lucide-react';
 
 interface LinkedInScraperProps {
   activeProject: ProjectTag;
@@ -24,22 +24,34 @@ export const LinkedInScraper: React.FC<LinkedInScraperProps> = ({
   const [isScraping, setIsScraping] = useState(false);
   const [results, setResults] = useState<Lead[]>([]);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
+  const [scrapeSuccess, setScrapeSuccess] = useState<{ runId: string; city: string; query: string; count: number } | null>(null);
 
   const handleScrapeLinkedIn = async () => {
     setIsScraping(true);
     setScrapeError(null);
+    setScrapeSuccess(null);
     try {
+      const queryStr = `${role} in ${city}`;
       const leads = await scrapeLeadsEngine({
         platform: 'LinkedIn Profile',
-        query: `${role} in ${city}`,
+        query: queryStr,
         city,
         count: 10,
         projectTag: activeProject
       });
-      setResults(leads);
-      onLeadsScraped(leads);
       if (leads.length === 0) {
         setScrapeError('No results. Please configure your Apify API token in the Apify Cloud tab.');
+      } else if (leads[0]?.id === 'async_trigger_success') {
+        setScrapeSuccess({
+          runId: leads[0].title,
+          city,
+          query: queryStr,
+          count: 10
+        });
+        setResults([]);
+      } else {
+        setResults(leads);
+        onLeadsScraped(leads);
       }
     } catch (err: any) {
       setScrapeError(err.message || 'Scraping failed. Check your Apify API token.');
@@ -116,6 +128,25 @@ export const LinkedInScraper: React.FC<LinkedInScraperProps> = ({
             </>
           )}
         </button>
+
+        {/* Asynchronous Trigger Success Card */}
+        {scrapeSuccess && (
+          <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-5 shadow-lg flex items-start gap-4 transition-all">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 animate-pulse">
+              <CheckCircle2 className="w-4.5 h-4.5" />
+            </div>
+            <div className="space-y-1 text-xs">
+              <h4 className="text-xs font-bold text-white">🚀 Scraper Task Dispatched to Apify Cloud!</h4>
+              <p className="text-emerald-300 font-medium">
+                Successfully launched async extraction of <strong>LinkedIn profiles</strong> for <strong>"{role}"</strong> in <strong>{scrapeSuccess.city}</strong>.
+              </p>
+              <div className="pt-2 flex flex-col gap-1 text-[10px] text-slate-400">
+                <div>• <strong>Apify Run ID:</strong> <code className="text-slate-200 bg-slate-950 px-1.5 py-0.5 rounded text-[9px] font-mono">{scrapeSuccess.runId}</code></div>
+                <div>• <strong>Auto-Import Webhook:</strong> Active. Leads will automatically stream directly into your database.</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {results.length > 0 && (

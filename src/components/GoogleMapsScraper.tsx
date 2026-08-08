@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Lead, LeadSource, ProjectTag } from '../types/scraper';
 import { scrapeLeadsEngine } from '../services/scraperEngine';
-import { MapPin, Search, Sparkles, Loader2, Database, ExternalLink } from 'lucide-react';
+import { MapPin, Search, Sparkles, Loader2, Database, ExternalLink, CheckCircle2 } from 'lucide-react';
 
 interface GoogleMapsScraperProps {
   activeProject: ProjectTag;
@@ -27,10 +27,12 @@ export const GoogleMapsScraper: React.FC<GoogleMapsScraperProps> = ({
   const [isScraping, setIsScraping] = useState(false);
   const [scrapedLeads, setScrapedLeads] = useState<Lead[]>([]);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
+  const [scrapeSuccess, setScrapeSuccess] = useState<{ runId: string; city: string; query: string; count: number } | null>(null);
 
   const handleStartScrape = async () => {
     setIsScraping(true);
     setScrapeError(null);
+    setScrapeSuccess(null);
     try {
       const leads = await scrapeLeadsEngine({
         platform: 'Google Maps' as LeadSource,
@@ -41,6 +43,17 @@ export const GoogleMapsScraper: React.FC<GoogleMapsScraperProps> = ({
       });
       if (leads.length === 0) {
         setScrapeError('No results. Please configure your Apify API token in the Apify Cloud tab to scrape real leads.');
+      } else if (leads[0]?.id === 'async_trigger_success') {
+        setScrapeSuccess({
+          runId: leads[0].title,
+          city,
+          query,
+          count
+        });
+        setScrapedLeads([]);
+        if (onLogScraperTask) {
+          onLogScraperTask(query, city, `Apify Async Run (Run ID: ${leads[0].title})`);
+        }
       } else {
         setScrapedLeads(leads);
         onLeadsScraped(leads);
@@ -142,6 +155,26 @@ export const GoogleMapsScraper: React.FC<GoogleMapsScraperProps> = ({
           )}
         </button>
       </div>
+
+      {/* Asynchronous Trigger Success Card */}
+      {scrapeSuccess && (
+        <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-6 shadow-lg flex items-start gap-4 transition-all">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 animate-pulse">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div className="space-y-1 text-xs">
+            <h4 className="text-sm font-bold text-white">🚀 Scraper Task Dispatched to Apify Cloud!</h4>
+            <p className="text-emerald-300 font-medium">
+              Successfully launched async extraction of <strong>{scrapeSuccess.count} leads</strong> for <strong>"{scrapeSuccess.query}"</strong> in <strong>{scrapeSuccess.city}</strong>.
+            </p>
+            <div className="pt-2 flex flex-col gap-1 text-[11px] text-slate-400">
+              <div>• <strong>Apify Run ID:</strong> <code className="text-slate-200 bg-slate-950 px-1.5 py-0.5 rounded text-[10px] font-mono">{scrapeSuccess.runId}</code></div>
+              <div>• <strong>Auto-Import Webhook:</strong> Configured & Active. Leads will automatically stream directly into your local database.</div>
+              <div>• <strong>Status:</strong> Running in background. You can close this tab, shut down, or run other tasks safely.</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error / No Token Banner */}
       {scrapeError && (
