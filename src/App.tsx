@@ -212,6 +212,8 @@ export function App() {
     };
   });
 
+  const [whatsappLogs, setWhatsappLogs] = useState<any[]>([]);
+
   // Sync configs to localStorage
   useEffect(() => {
     localStorage.setItem('apify_config', JSON.stringify(apifyConfig));
@@ -220,6 +222,23 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('whatsapp_config', JSON.stringify(whatsAppConfig));
   }, [whatsAppConfig]);
+
+  const fetchLogs = async () => {
+    if (!sessionToken) return;
+    try {
+      const res = await fetch('/api/whatsapp-logs', {
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setWhatsappLogs(data);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch logs", err);
+    }
+  };
 
   // Load leads & tasks from Cloudflare D1 Database on mount
   useEffect(() => {
@@ -263,6 +282,16 @@ export function App() {
           }
         }
         setTasks(initialTasksList);
+
+        const logsRes = await fetch('/api/whatsapp-logs', { headers });
+        let initialLogsList = [];
+        if (logsRes.ok) {
+          const data = await logsRes.json();
+          if (Array.isArray(data)) {
+            initialLogsList = data;
+          }
+        }
+        setWhatsappLogs(initialLogsList);
 
       } catch (err) {
         console.error("Failed to fetch leads or tasks from D1 database", err);
@@ -479,6 +508,7 @@ export function App() {
           {activeTab === 'dashboard' && (
             <Dashboard
               leads={leads}
+              whatsappLogs={whatsappLogs}
               activeProject={activeProject}
               onNavigateToTab={setActiveTab}
               onQuickWhatsApp={handleOpenOutreachModal}
@@ -541,6 +571,8 @@ export function App() {
               leads={leads}
               setLeads={setLeads}
               activeProject={activeProject}
+              whatsappLogs={whatsappLogs}
+              onRefreshLogs={fetchLogs}
             />
           )}
 

@@ -1,7 +1,19 @@
 import React, { useState } from 'react';
 import { Lead, WhatsAppConfig, ProjectTag } from '../types/scraper';
 import { sendWhatsAppMessage, parseMessageTemplate } from '../services/whatsappService';
-import { MessageSquare, Server, Send, CheckCircle2, AlertCircle, Loader2, Sparkles, Code2 } from 'lucide-react';
+import { 
+  MessageSquare, 
+  Server, 
+  Send, 
+  CheckCircle2, 
+  AlertCircle, 
+  Loader2, 
+  Sparkles, 
+  Code2,
+  Search,
+  Database,
+  RefreshCw 
+} from 'lucide-react';
 
 interface OutreachCenterProps {
   whatsAppConfig: WhatsAppConfig;
@@ -9,6 +21,8 @@ interface OutreachCenterProps {
   leads: Lead[];
   setLeads: React.Dispatch<React.SetStateAction<Lead[]>>;
   activeProject: ProjectTag;
+  whatsappLogs: any[];
+  onRefreshLogs: () => void;
 }
 
 export const OutreachCenter: React.FC<OutreachCenterProps> = ({
@@ -16,7 +30,9 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
   setWhatsAppConfig,
   leads,
   setLeads,
-  activeProject
+  activeProject,
+  whatsappLogs,
+  onRefreshLogs
 }) => {
   const [serverUrl, setServerUrl] = useState(whatsAppConfig.serverUrl || 'https://wa.transmaxsolutons.com');
   const [apiToken, setApiToken] = useState(whatsAppConfig.apiToken || '');
@@ -31,6 +47,32 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
 
   const [isSendingBatch, setIsSendingBatch] = useState(false);
   const [batchLog, setBatchLog] = useState<string[]>([]);
+  const [activeRightTab, setActiveRightTab] = useState<'dispatcher' | 'history'>('dispatcher');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isRefreshingLogs, setIsRefreshingLogs] = useState(false);
+
+  const logWhatsAppSend = async (leadId: string, phone: string, message: string, serverResponse: string) => {
+    const sessionToken = localStorage.getItem('access_token') || '';
+    if (!sessionToken) return;
+    try {
+      await fetch('/api/whatsapp-logs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({
+          leadId,
+          phone,
+          message,
+          serverResponse
+        })
+      });
+      onRefreshLogs();
+    } catch (err) {
+      console.error('Failed to log WhatsApp outreach to D1:', err);
+    }
+  };
 
   // AI Assistant and Single Send State
   const projectLeads = leads.filter(l => activeProject === 'General' || l.projectTag === activeProject);
@@ -66,6 +108,14 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
       setBatchLog(prev => [...prev, `Sending to ${lead.title} (${lead.whatsapp || lead.phone})...`]);
       
       const result = await sendWhatsAppMessage(whatsAppConfig, lead, messageTemplate);
+
+      // Log attempt in D1
+      await logWhatsAppSend(
+        lead.id, 
+        result.phone, 
+        result.message, 
+        result.success ? 'DELIVERED' : `FAILED: ${result.error || 'Server error'}`
+      );
 
       if (result.success) {
         sentCount++;
@@ -162,6 +212,15 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
     }
     setIsSendingSingle(true);
     const result = await sendWhatsAppMessage(whatsAppConfig, targetLead, messageTemplate);
+
+    // Log attempt in D1
+    await logWhatsAppSend(
+      targetLead.id, 
+      result.phone, 
+      result.message, 
+      result.success ? 'DELIVERED' : `FAILED: ${result.error || 'Server error'}`
+    );
+
     if (result.success) {
       alert(`✅ WhatsApp message successfully sent to ${targetLead.title}!`);
       const updatedLeads = [...leads];
@@ -333,53 +392,175 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
         </div>
 
         {/* Template Builder & Dispatcher */}
-        <div className="lg:col-span-2 bg-slate-900/80 p-6 rounded-2xl border border-slate-800 shadow-lg space-y-4">
+        <div className="lg:col-span-2 bg-slate-900/80 p-6 rounded-2xl border border-slate-800 shadow-lg flex flex-col space-y-4">
+          
+          {/* Sub-tabs header */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <div>
-              <h3 className="font-bold text-white text-base">Campaign Message Template ({activeProject})</h3>
-              <p className="text-xs text-slate-400">Use placeholders: <code className="text-emerald-400">{"{{business_name}}"}</code>, <code className="text-emerald-400">{"{{city}}"}</code>, <code className="text-emerald-400">{"{{project}}"}</code></p>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setActiveRightTab('dispatcher')}
+                className={`text-sm font-bold pb-2 transition-all border-b-2 ${
+                  activeRightTab === 'dispatcher'
+                    ? 'text-emerald-400 border-emerald-400'
+                    : 'text-slate-400 border-transparent hover:text-slate-200'
+                }`}
+              >
+                Campaign Dispatcher
+              </button>
+              <button
+                onClick={() => setActiveRightTab('history')}
+                className={`text-sm font-bold pb-2 transition-all border-b-2 flex items-center gap-1.5 ${
+                  activeRightTab === 'history'
+                    ? 'text-emerald-400 border-emerald-400'
+                    : 'text-slate-400 border-transparent hover:text-slate-200'
+                }`}
+              >
+                Outreach History Logs
+                <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 text-slate-300">
+                  {whatsappLogs.filter(l => activeProject === 'General' || l.projectTag === activeProject).length}
+                </span>
+              </button>
             </div>
-          </div>
-
-          <textarea
-            rows={8}
-            value={messageTemplate}
-            onChange={(e) => setMessageTemplate(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono leading-relaxed"
-          />
-
-          {/* Live Message Preview */}
-          <div className="bg-slate-950 p-4 rounded-xl border border-slate-800/80 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-              <Code2 className="w-3.5 h-3.5 text-teal-400" /> Live Rendered Preview ({targetLead.title}):
-            </div>
-            <p className="text-xs text-emerald-300 font-mono bg-slate-900 p-3 rounded-lg border border-slate-800 whitespace-pre-wrap leading-relaxed">
-              {parseMessageTemplate(messageTemplate, targetLead)}
-            </p>
-          </div>
-
-          <button
-            onClick={handleRunBatchOutreach}
-            disabled={isSendingBatch}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-extrabold text-sm shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
-          >
-            {isSendingBatch ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" /> Dispatching WhatsApp Campaign...
-              </>
-            ) : (
-              <>
-                <Send className="w-5 h-5" /> Launch WhatsApp Campaign via wa.transmaxsolutons.com
-              </>
+            
+            {activeRightTab === 'history' && (
+              <button
+                onClick={async () => {
+                  setIsRefreshingLogs(true);
+                  await onRefreshLogs();
+                  setIsRefreshingLogs(false);
+                }}
+                disabled={isRefreshingLogs}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 disabled:opacity-50 transition-all flex items-center gap-1 text-[11px] font-semibold"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingLogs ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
             )}
-          </button>
+          </div>
 
-          {/* Log Output */}
-          {batchLog.length > 0 && (
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 max-h-48 overflow-y-auto font-mono text-[11px] text-slate-300 space-y-1">
-              {batchLog.map((log, i) => (
-                <div key={i}>{log}</div>
-              ))}
+          {activeRightTab === 'dispatcher' ? (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-bold text-white text-sm">Campaign Message Template ({activeProject})</h3>
+                <p className="text-[11px] text-slate-400">Use placeholders: <code className="text-emerald-400">{"{{business_name}}"}</code>, <code className="text-emerald-400">{"{{city}}"}</code>, <code className="text-emerald-400">{"{{project}}"}</code></p>
+              </div>
+
+              <textarea
+                rows={8}
+                value={messageTemplate}
+                onChange={(e) => setMessageTemplate(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono leading-relaxed"
+              />
+
+              {/* Live Message Preview */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800/80 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+                  <Code2 className="w-3.5 h-3.5 text-teal-400" /> Live Rendered Preview ({targetLead.title}):
+                </div>
+                <p className="text-xs text-emerald-300 font-mono bg-slate-900 p-3 rounded-lg border border-slate-800 whitespace-pre-wrap leading-relaxed">
+                  {parseMessageTemplate(messageTemplate, targetLead)}
+                </p>
+              </div>
+
+              <button
+                onClick={handleRunBatchOutreach}
+                disabled={isSendingBatch}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-extrabold text-sm shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+              >
+                {isSendingBatch ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" /> Dispatching WhatsApp Campaign...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5" /> Launch WhatsApp Campaign via wa.transmaxsolutons.com
+                  </>
+                )}
+              </button>
+
+              {/* Log Output */}
+              {batchLog.length > 0 && (
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 max-h-48 overflow-y-auto font-mono text-[11px] text-slate-300 space-y-1">
+                  {batchLog.map((log, i) => (
+                    <div key={i}>{log}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search logs by phone, business name or content..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium"
+                />
+              </div>
+
+              {/* Logs Table */}
+              <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-950 text-slate-400 uppercase font-semibold text-[10px] border-b border-slate-800">
+                    <tr>
+                      <th className="py-2.5 px-3">Recipient</th>
+                      <th className="py-2.5 px-3">Message Content</th>
+                      <th className="py-2.5 px-3">Sent At</th>
+                      <th className="py-2.5 px-3 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {whatsappLogs
+                      .filter(l => activeProject === 'General' || l.projectTag === activeProject)
+                      .filter(l => {
+                        if (!searchQuery) return true;
+                        const query = searchQuery.toLowerCase();
+                        return (
+                          (l.businessName || '').toLowerCase().includes(query) ||
+                          (l.phone || '').includes(query) ||
+                          (l.message || '').toLowerCase().includes(query)
+                        );
+                      })
+                      .map((log) => {
+                        const isSuccess = log.serverResponse === 'DELIVERED';
+                        return (
+                          <tr key={log.id} className="hover:bg-slate-850/50 transition-colors">
+                            <td className="py-2.5 px-3">
+                              <div className="font-semibold text-white">{log.businessName || 'Unknown Lead'}</div>
+                              <div className="text-[10px] font-mono text-teal-400 mt-0.5">{log.phone}</div>
+                            </td>
+                            <td className="py-2.5 px-3 max-w-[200px] truncate text-slate-400 font-mono text-[11px]" title={log.message}>
+                              {log.message}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-400 font-mono text-[10px]">
+                              {new Date(log.sentAt).toLocaleString()}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <span className={`inline-flex px-2 py-0.5 rounded-[5px] text-[10px] font-bold ${
+                                isSuccess 
+                                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/40' 
+                                  : 'bg-red-950 text-red-400 border border-red-800/40'
+                              }`}>
+                                {isSuccess ? 'DELIVERED' : 'FAILED'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    {whatsappLogs.filter(l => activeProject === 'General' || l.projectTag === activeProject).length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center text-slate-500 text-xs">
+                          <Database className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                          No outreach campaigns sent yet for {activeProject}.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

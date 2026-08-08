@@ -26,6 +26,7 @@ import {
 
 interface DashboardProps {
   leads: Lead[];
+  whatsappLogs?: any[];
   activeProject: ProjectTag;
   onNavigateToTab: (tab: string) => void;
   onQuickWhatsApp: (lead: Lead) => void;
@@ -33,14 +34,19 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({
   leads,
+  whatsappLogs = [],
   activeProject,
   onNavigateToTab,
   onQuickWhatsApp
 }) => {
   const filteredLeads = leads.filter(l => l.projectTag === activeProject || activeProject === 'General');
+  const filteredLogs = whatsappLogs.filter(l => l.projectTag === activeProject || activeProject === 'General');
 
   const totalCount = filteredLeads.length;
-  const whatsAppCount = filteredLeads.filter(l => l.outreachStatus === 'WhatsApp Sent').length;
+  const whatsAppCount = filteredLogs.length;
+  const deliveredCount = filteredLogs.filter(l => l.serverResponse === 'DELIVERED').length;
+  const successRate = whatsAppCount > 0 ? Math.round((deliveredCount / whatsAppCount) * 100) : 0;
+  
   const qualifiedCount = filteredLeads.filter(l => l.outreachStatus === 'Qualified' || l.outreachStatus === 'Converted').length;
 
   // City breakdown
@@ -143,7 +149,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <span className="text-xs text-slate-400 ml-2">via wa.transmax</span>
           </div>
           <div className="mt-2 text-[11px] text-slate-400">
-            Delivery Rate: <strong className="text-emerald-400">98.4%</strong>
+            Delivery Rate: <strong className="text-emerald-400">{whatsAppCount > 0 ? `${successRate}%` : '100%'}</strong> ({deliveredCount} / {whatsAppCount} ok)
           </div>
         </div>
 
