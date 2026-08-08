@@ -6,13 +6,15 @@ import { MapPin, Search, Sparkles, Loader2, Database, ExternalLink } from 'lucid
 interface GoogleMapsScraperProps {
   activeProject: ProjectTag;
   onLeadsScraped: (leads: Lead[]) => void;
+  onLogScraperTask?: (query: string, city: string, platform: string) => void;
 }
 
 const PK_CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Murree', 'Skardu', 'Hunza', 'Faisalabad', 'Peshawar', 'Multan', 'Rawalpindi', 'Swat', 'Gilgit', 'Chitral', 'Abbottabad'];
 
 export const GoogleMapsScraper: React.FC<GoogleMapsScraperProps> = ({
   activeProject,
-  onLeadsScraped
+  onLeadsScraped,
+  onLogScraperTask
 }) => {
   const [city, setCity] = useState('Lahore');
   const [query, setQuery] = useState(activeProject === 'Dreamstay' ? 'Guest Houses & Hotels' : 'Travel Agencies & Tour Operators');
@@ -34,9 +36,13 @@ export const GoogleMapsScraper: React.FC<GoogleMapsScraperProps> = ({
       });
       if (leads.length === 0) {
         setScrapeError('No results. Please configure your Apify API token in the Apify Cloud tab to scrape real leads.');
+      } else {
+        setScrapedLeads(leads);
+        onLeadsScraped(leads);
+        if (onLogScraperTask) {
+          onLogScraperTask(query, city, 'Google Maps');
+        }
       }
-      setScrapedLeads(leads);
-      onLeadsScraped(leads);
     } catch (err: any) {
       setScrapeError(err.message || 'Scraping failed. Check your Apify API token.');
       console.error(err);

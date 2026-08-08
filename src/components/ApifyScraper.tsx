@@ -8,6 +8,7 @@ interface ApifyScraperProps {
   setApifyConfig: (cfg: ApifyConfig) => void;
   activeProject: ProjectTag;
   onLeadsScraped: (newLeads: Lead[]) => void;
+  onLogScraperTask?: (query: string, city: string, platform: string) => void;
 }
 
 const PAKISTAN_CITIES = [
@@ -27,7 +28,8 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
   apifyConfig,
   setApifyConfig,
   activeProject,
-  onLeadsScraped
+  onLeadsScraped,
+  onLogScraperTask
 }) => {
   const [apiToken, setApiToken] = useState(apifyConfig.apiToken || '');
   const [displayName, setDisplayName] = useState(apifyConfig.displayName || 'ZulCodex\'s Apify');
@@ -81,6 +83,9 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
 
       setScrapedResults(leads);
       onLeadsScraped(leads);
+      if (onLogScraperTask && leads.length > 0) {
+        onLogScraperTask(selectedTerm, selectedCity, 'Apify Cloud');
+      }
       setStatusMessage(`Successfully extracted ${leads.length} leads from Apify Cloud!`);
     } catch (err: any) {
       setErrorMsg(err.message || 'Error executing Apify Actor');
@@ -148,6 +153,9 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
 
       setScrapedResults(leads);
       onLeadsScraped(leads);
+      if (onLogScraperTask && leads.length > 0) {
+        onLogScraperTask(`Import Dataset (Run: ${pastRunId})`, selectedCity, 'Apify Import');
+      }
       setStatusMessage(`✅ Loaded ${leads.length} leads from Run ID: ${pastRunId} at $0 cost!`);
       setPastRunId('');
     } catch (err: any) {

@@ -345,6 +345,27 @@ export function App() {
     });
   };
 
+  const handleLogScraperTask = (query: string, city: string, platform: string) => {
+    const newTask: TaskItem = {
+      id: `task_scrape_${Date.now()}`,
+      title: `${platform} Scrape: ${query}`,
+      projectTag: activeProject,
+      category: query,
+      targetCity: city,
+      status: 'Completed',
+      autoOutreach: true,
+      createdDate: new Date().toLocaleDateString(),
+      completedDate: new Date().toLocaleDateString()
+    };
+    setTasks(prev => {
+      // Avoid duplicates if identical task was logged today
+      if (prev.some(t => t.title === newTask.title && t.targetCity === newTask.targetCity && t.createdDate === newTask.createdDate)) {
+        return prev;
+      }
+      return [newTask, ...prev];
+    });
+  };
+
   const handleOpenOutreachModal = (lead: Lead) => {
     setActiveWhatsAppLead(lead);
 
@@ -480,6 +501,7 @@ export function App() {
               setApifyConfig={setApifyConfig}
               activeProject={activeProject}
               onLeadsScraped={handleLeadsScraped}
+              onLogScraperTask={handleLogScraperTask}
             />
           )}
 
@@ -487,6 +509,7 @@ export function App() {
             <GoogleMapsScraper
               activeProject={activeProject}
               onLeadsScraped={handleLeadsScraped}
+              onLogScraperTask={handleLogScraperTask}
             />
           )}
 
