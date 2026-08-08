@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
+import { Login } from './components/Login';
 import { Dashboard } from './components/Dashboard';
 import { ApifyScraper } from './components/ApifyScraper';
 import { GoogleMapsScraper } from './components/GoogleMapsScraper';
@@ -165,10 +166,22 @@ export function App() {
   const [activeProject, setActiveProject] = useState<ProjectTag>('Globetrek');
   
   
-  // Cloudflare D1 Serverless Database Integration Active
+  const [sessionToken, setSessionToken] = useState<string | null>(() => localStorage.getItem('access_token'));
   const [leads, setLeads] = useState<Lead[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [isLoadingDB, setIsLoadingDB] = useState(true);
+
+  const handleLoginSuccess = (token: string) => {
+    localStorage.setItem('access_token', token);
+    setSessionToken(token);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    setSessionToken(null);
+    setLeads([]);
+    setTasks([]);
+  };
 
   const [apifyConfig, setApifyConfig] = useState<ApifyConfig>(() => {
     const saved = localStorage.getItem('apify_config');
@@ -209,10 +222,23 @@ export function App() {
 
   // Load leads & tasks from Cloudflare D1 Database on mount
   useEffect(() => {
+    if (!sessionToken) {
+      setIsLoadingDB(false);
+      return;
+    }
+
     const initDatabase = async () => {
       try {
-        const leadsRes = await fetch('/api/leads');
+        const headers = { 'Authorization': `Bearer ${sessionToken}` };
+        
+        const leadsRes = await fetch('/api/leads', { headers });
         let initialLeadsList = [];
+        
+        if (leadsRes.status === 401) {
+          handleLogout();
+          return;
+        }
+        
         if (leadsRes.ok) {
           const data = await leadsRes.json();
           if (Array.isArray(data) && data.length > 0) {
@@ -221,7 +247,7 @@ export function App() {
             // D1 is empty, bootstrap with INITIAL_LEADS
             await fetch('/api/leads', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', ...headers },
               body: JSON.stringify(INITIAL_LEADS)
             });
             initialLeadsList = INITIAL_LEADS;
@@ -229,8 +255,14 @@ export function App() {
         }
         setLeads(initialLeadsList);
 
-        const tasksRes = await fetch('/api/tasks');
+        const tasksRes = await fetch('/api/tasks', { headers });
         let initialTasksList = [];
+        
+        if (tasksRes.status === 401) {
+          handleLogout();
+          return;
+        }
+        
         if (tasksRes.ok) {
           const data = await tasksRes.json();
           if (Array.isArray(data) && data.length > 0) {
@@ -239,7 +271,7 @@ export function App() {
             // D1 is empty, bootstrap with INITIAL_TASKS
             await fetch('/api/tasks', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', ...headers },
               body: JSON.stringify(INITIAL_TASKS)
             });
             initialTasksList = INITIAL_TASKS;
@@ -254,28 +286,38 @@ export function App() {
       }
     };
     initDatabase();
-  }, []);
+  }, [sessionToken]);
 
   // Sync changes back to D1 Database
   useEffect(() => {
-    if (!isLoadingDB) {
+    if (!isLoadingDB && sessionToken && leads.length > 0) {
       fetch('/api/leads', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
         body: JSON.stringify(leads)
+      }).then(res => {
+        if (res.status === 401) handleLogout();
       }).catch(err => console.error("Leads D1 sync failed", err));
     }
-  }, [leads, isLoadingDB]);
+  }, [leads, isLoadingDB, sessionToken]);
 
   useEffect(() => {
-    if (!isLoadingDB) {
+    if (!isLoadingDB && sessionToken && tasks.length > 0) {
       fetch('/api/tasks', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
         body: JSON.stringify(tasks)
+      }).then(res => {
+        if (res.status === 401) handleLogout();
       }).catch(err => console.error("Tasks D1 sync failed", err));
     }
-  }, [tasks, isLoadingDB]);
+  }, [tasks, isLoadingDB, sessionToken]);
 
   const [activeWhatsAppLead, setActiveWhatsAppLead] = useState<Lead | null>(null);
   const [quickMsgText, setQuickMsgText] = useState('');
@@ -356,6 +398,10 @@ export function App() {
   const totalLeadsCount = leads.filter(l => activeProject === 'General' || l.projectTag === activeProject).length;
   const whatsAppCount = leads.filter(l => (activeProject === 'General' || l.projectTag === activeProject) && l.outreachStatus === 'WhatsApp Sent').length;
 
+  if (!sessionToken) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100 font-['Plus_Jakarta_Sans',sans-serif] selection:bg-teal-500 selection:text-white">
       {/* Sidebar Navigation */}
@@ -379,15 +425,23 @@ export function App() {
             <span className="text-xs font-bold text-white capitalize">{activeTab.replace('-', ' ')}</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">Targeting:</span>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-              activeProject === 'Dreamstay' 
-                ? 'bg-teal-950 text-teal-300 border border-teal-800' 
-                : 'bg-orange-950 text-orange-300 border border-orange-800'
-            }`}>
-              {activeProject} Pakistan
-            </span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">Targeting:</span>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                activeProject === 'Dreamstay' 
+                  ? 'bg-teal-950 text-teal-300 border border-teal-800' 
+                  : 'bg-orange-950 text-orange-300 border border-orange-800'
+              }`}>
+                {activeProject} Pakistan
+              </span>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="px-3 py-1 text-xs font-bold text-slate-400 hover:text-white border border-slate-800 hover:border-slate-700 bg-slate-950/60 rounded-xl transition-all"
+            >
+              Logout
+            </button>
           </div>
         </header>
 

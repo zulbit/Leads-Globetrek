@@ -1,5 +1,19 @@
 interface Env {
   DB: D1Database;
+  ACCESS_PASSWORD?: string;
+}
+
+// Authorization check helper
+async function isAuthorized(request: Request, env: Env): Promise<boolean> {
+  const authHeader = request.headers.get('Authorization');
+  const masterPassword = env.ACCESS_PASSWORD || 'globetrek2026';
+  
+  const msgBuffer = new TextEncoder().encode(masterPassword);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const expectedToken = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return authHeader === `Bearer ${expectedToken}`;
 }
 
 interface LeadBody {
@@ -31,6 +45,14 @@ interface LeadBody {
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
+  
+  if (!await isAuthorized(request, env)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   const url = new URL(request.url);
   const projectTag = url.searchParams.get('projectTag');
 
@@ -57,6 +79,14 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
+  
+  if (!await isAuthorized(request, env)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   try {
     const body = await request.json();
     const leads: LeadBody[] = Array.isArray(body) ? body : [body];
@@ -155,6 +185,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
+  
+  if (!await isAuthorized(request, env)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
   const clearDemo = url.searchParams.get('clearDemo');

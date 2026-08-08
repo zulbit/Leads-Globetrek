@@ -37,9 +37,15 @@ export const resolveBusinessOnlinePresence = async (
   // Use the backend for real HTTP checks
   for (const testUrl of potentialDomains) {
     try {
+      const token = localStorage.getItem('access_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch('/api/check-website', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ url: testUrl })
       });
 

@@ -2,9 +2,34 @@
  * Cloudflare Pages Function: POST /api/check-website
  * Performs server-side HTTP URL validation from Cloudflare edge nodes.
  */
-export const onRequestPost: PagesFunction = async (context) => {
+interface Env {
+  ACCESS_PASSWORD?: string;
+}
+
+// Authorization check helper
+async function isAuthorized(request: Request, env: Env): Promise<boolean> {
+  const authHeader = request.headers.get('Authorization');
+  const masterPassword = env.ACCESS_PASSWORD || 'globetrek2026';
+  
+  const msgBuffer = new TextEncoder().encode(masterPassword);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const expectedToken = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return authHeader === `Bearer ${expectedToken}`;
+}
+
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
+  
+  if (!await isAuthorized(request, env)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   try {
-    const { request } = context;
     const body = await request.json() as { url: string };
     const url = body.url;
 
