@@ -68,7 +68,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
         setSuccess(true);
         setError('');
         setTimeout(() => {
-          onLoginSuccess('dev_access_token_globetrek2026');
+          onLoginSuccess('787593cce8ecfbb0c5dd1ec84e366ea9d1b09fa496e57201c1eeecf9905c19d4');
         }, 800);
         return;
       }
@@ -80,7 +80,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
         setSuccess(true);
         setError('');
         setTimeout(() => {
-          onLoginSuccess('dev_access_token_globetrek2026');
+          onLoginSuccess('787593cce8ecfbb0c5dd1ec84e366ea9d1b09fa496e57201c1eeecf9905c19d4');
         }, 800);
       } else {
         setError('Incorrect passcode. Please try again.');

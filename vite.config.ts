@@ -8,8 +8,9 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true
+        target: 'https://leads-globetrek.pages.dev',
+        changeOrigin: true,
+        secure: true
       }
     }
   }
