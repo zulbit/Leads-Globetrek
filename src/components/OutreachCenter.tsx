@@ -81,6 +81,10 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
   const [aiError, setAiError] = useState<string | null>(null);
   const [isSendingSingle, setIsSendingSingle] = useState(false);
 
+  const [testPhone, setTestPhone] = useState('+923132576390');
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
   const handleSaveConfig = () => {
     setWhatsAppConfig({
       ...whatsAppConfig,
@@ -89,6 +93,67 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
       instanceId: instanceId.trim()
     });
     alert('WhatsApp Server Configuration Saved!');
+  };
+
+  const handleTestConnection = async () => {
+    if (!apiToken.trim()) {
+      alert('Please enter your API Token / Secret Key first!');
+      return;
+    }
+
+    setIsTestingConnection(true);
+    setTestResult(null);
+
+    const testConfig: WhatsAppConfig = {
+      serverUrl: serverUrl.trim(),
+      apiToken: apiToken.trim(),
+      instanceId: instanceId.trim(),
+      autoFormatPkNumbers: true,
+      templates: []
+    };
+
+    const sampleLead: Lead = {
+      id: 'test_conn_' + Date.now(),
+      title: 'Verification Test Connection',
+      phone: testPhone,
+      whatsapp: testPhone,
+      email: 'test@transmax.com',
+      website: 'https://wa.transmaxsolutons.com',
+      address: 'Karachi, Pakistan',
+      city: 'Karachi',
+      country: 'Pakistan',
+      category: 'Test Verification',
+      source: 'Google Maps',
+      projectTag: activeProject,
+      outreachStatus: 'New',
+      createdAt: new Date().toISOString()
+    };
+
+    const customMsg = `🧪 Test Connection Successful! Your WhatsApp API server (${testConfig.serverUrl}) is live & ready for ${activeProject} outreach.`;
+
+    const result = await sendWhatsAppMessage(testConfig, sampleLead, customMsg);
+
+    // Save test result log into D1 database history
+    await logWhatsAppSend(
+      sampleLead.id,
+      result.phone,
+      result.message,
+      result.success ? 'DELIVERED (Test)' : `FAILED: ${result.error || 'Server error'}`
+    );
+
+    setIsTestingConnection(false);
+
+    if (result.success) {
+      setTestResult({
+        success: true,
+        message: `✅ Connection Verified! Sample message sent to ${result.phone} via ${testConfig.instanceId || 'instance_01'}.`
+      });
+    } else {
+      setTestResult({
+        success: false,
+        message: `❌ Test Failed: ${result.error}`
+      });
+    }
   };
 
   const handleRunBatchOutreach = async () => {
@@ -304,12 +369,49 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
                 />
               </div>
 
-              <button
-                onClick={handleSaveConfig}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition-all flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Save Server Config
-              </button>
+              <div>
+                <label className="block text-slate-400 font-medium mb-1">Test Recipient Phone</label>
+                <input
+                  type="text"
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                  placeholder="e.g. +923132576390"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-teal-300 font-mono text-xs focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              {testResult && (
+                <div className={`p-3 rounded-xl border text-xs font-medium ${
+                  testResult.success 
+                    ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300' 
+                    : 'bg-red-950/60 border-red-700/60 text-red-300'
+                }`}>
+                  {testResult.message}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  onClick={handleSaveConfig}
+                  className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Save Config
+                </button>
+
+                <button
+                  onClick={handleTestConnection}
+                  disabled={isTestingConnection}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 active:scale-98 text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/20 disabled:opacity-50"
+                >
+                  {isTestingConnection ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5 text-white" /> Test Message
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
