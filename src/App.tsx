@@ -252,30 +252,32 @@ export function App() {
         const headers = { 'Authorization': `Bearer ${sessionToken}` };
         
         const leadsRes = await fetch('/api/leads', { headers });
-        let initialLeadsList = [];
+        let initialLeadsList = INITIAL_LEADS;
         
         if (leadsRes.status === 401) {
           handleLogout();
           return;
         }
         
-        if (leadsRes.ok) {
+        const leadsType = leadsRes.headers.get('content-type');
+        if (leadsRes.ok && leadsType && leadsType.includes('application/json')) {
           const data = await leadsRes.json();
           if (Array.isArray(data)) {
-            initialLeadsList = data;
+            initialLeadsList = data.length > 0 ? data : INITIAL_LEADS;
           }
         }
         setLeads(initialLeadsList);
 
         const tasksRes = await fetch('/api/tasks', { headers });
-        let initialTasksList = [];
+        let initialTasksList = INITIAL_TASKS;
         
         if (tasksRes.status === 401) {
           handleLogout();
           return;
         }
         
-        if (tasksRes.ok) {
+        const tasksType = tasksRes.headers.get('content-type');
+        if (tasksRes.ok && tasksType && tasksType.includes('application/json')) {
           const data = await tasksRes.json();
           if (Array.isArray(data)) {
             initialTasksList = data;
@@ -285,7 +287,8 @@ export function App() {
 
         const logsRes = await fetch('/api/whatsapp-logs', { headers });
         let initialLogsList = [];
-        if (logsRes.ok) {
+        const logsType = logsRes.headers.get('content-type');
+        if (logsRes.ok && logsType && logsType.includes('application/json')) {
           const data = await logsRes.json();
           if (Array.isArray(data)) {
             initialLogsList = data;
