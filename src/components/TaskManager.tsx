@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { TaskItem, ProjectTag } from '../types/scraper';
+import { TaskItem, ProjectTag, Lead, WhatsAppConfig } from '../types/scraper';
+import { scrapeLeadsEngine } from '../services/scraperEngine';
+import { sendWhatsAppMessage } from '../services/whatsappService';
 import { CheckSquare, Plus, CheckCircle2, Clock, Play, Trash2 } from 'lucide-react';
 
 const PK_CITIES = [
@@ -13,12 +15,16 @@ interface TaskManagerProps {
   tasks: TaskItem[];
   setTasks: React.Dispatch<React.SetStateAction<TaskItem[]>>;
   activeProject: ProjectTag;
+  whatsAppConfig?: WhatsAppConfig;
+  onLeadsScraped?: (leads: Lead[]) => void;
 }
 
 export const TaskManager: React.FC<TaskManagerProps> = ({
   tasks,
   setTasks,
-  activeProject
+  activeProject,
+  whatsAppConfig,
+  onLeadsScraped
 }) => {
   const [newTitle, setNewTitle] = useState('');
   const [newCity, setNewCity] = useState('Lahore');
@@ -46,21 +52,55 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   const handleRunTaskNow = async (task: TaskItem) => {
     setRunningTaskId(task.id);
     setExecutionLog([
-      `🚀 Initiating Auto-Pilot Task: ${task.title}...`,
-      `🔍 Scraping target leads in ${task.targetCity} for ${task.projectTag}...`
+      `🚀 Initiating Real Auto-Pilot Task: ${task.title}...`,
+      `🔍 Extracting REAL live leads for ${task.targetCity} (${task.category}) via Google Maps Engine...`
     ]);
 
     // Update status to In Progress
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'In Progress' } : t));
 
-    await new Promise(r => setTimeout(r, 1500));
-    setExecutionLog(prev => [...prev, `✅ Scraped 15 new verified leads in ${task.targetCity}!`]);
+    try {
+      const realLeads = await scrapeLeadsEngine({
+        platform: 'Google Maps',
+        query: task.category || (task.projectTag === 'Dreamstay' ? 'Hotels & Guest Houses' : 'Travel Agencies & Tour Operators'),
+        city: task.targetCity,
+        count: 10,
+        projectTag: task.projectTag
+      });
 
-    if (task.autoOutreach) {
-      await new Promise(r => setTimeout(r, 1200));
-      setExecutionLog(prev => [...prev, `💬 Auto-Outreach Enabled: Preparing WhatsApp batch dispatches with anti-spam pause...`]);
-      await new Promise(r => setTimeout(r, 1500));
-      setExecutionLog(prev => [...prev, `🟢 Campaign Complete! 15 WhatsApp messages queued to gateway.`]);
+      setExecutionLog(prev => [
+        ...prev, 
+        `✅ Successfully extracted ${realLeads.length} REAL verified leads for ${task.targetCity}!`,
+        `💾 Saved ${realLeads.length} leads to Cloudflare D1 Database & Lead Hub.`
+      ]);
+
+      if (onLeadsScraped && realLeads.length > 0) {
+        onLeadsScraped(realLeads);
+      }
+
+      if (task.autoOutreach && realLeads.length > 0 && whatsAppConfig) {
+        setExecutionLog(prev => [...prev, `💬 Auto-Outreach Triggered: Dispatching personalized WhatsApp messages to ${realLeads.length} new leads...`]);
+        
+        let sentCount = 0;
+        const template = task.projectTag === 'Dreamstay' 
+          ? `Hello {{business_name}}! Greetings from Dreamstay. We discovered your listing in {{city}} and would love to partner with you to boost your guest bookings.`
+          : `*GlobeTrek PK — Vendor Onboarding* 🌍✈️\n\nDear *{{business_name}}*,\n\nWelcome to *GlobeTrek*! Register your business in {{city}} at https://globetrek.testbench.shop/auth?mode=signin`;
+
+        for (const lead of realLeads) {
+          const res = await sendWhatsAppMessage(whatsAppConfig, lead, template);
+          if (res.success) {
+            sentCount++;
+            setExecutionLog(prev => [...prev, `🟢 WhatsApp Delivered to ${lead.title} (${res.phone})`]);
+          } else {
+            setExecutionLog(prev => [...prev, `⚠️ Dispatch failed for ${lead.title}: ${res.error}`]);
+          }
+          await new Promise(r => setTimeout(r, (whatsAppConfig.sendIntervalSeconds || 5) * 1000));
+        }
+
+        setExecutionLog(prev => [...prev, `🎉 Campaign Complete! Delivered ${sentCount}/${realLeads.length} WhatsApp messages.`]);
+      }
+    } catch (err: any) {
+      setExecutionLog(prev => [...prev, `❌ Task Execution Error: ${err.message}`]);
     }
 
     setTasks(prev => prev.map(t => t.id === task.id ? { 

@@ -630,6 +630,8 @@ export function App() {
               tasks={tasks}
               setTasks={setTasks}
               activeProject={activeProject}
+              whatsAppConfig={whatsAppConfig}
+              onLeadsScraped={handleLeadsScraped}
             />
           )}
         </main>
