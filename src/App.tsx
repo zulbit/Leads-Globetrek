@@ -245,8 +245,8 @@ export function App() {
     }
     return {
       serverUrl: 'https://wa.yello.bid',
-      apiToken: 'be70066b8598f3c97dc16e7a712e95b98e773430',
-      instanceId: 'gateway_01',
+      apiToken: 'bef0066b8598f3c97dc16e7af12e95b98e773430',
+      instanceId: '1765976556c4ca4238a0b923820dcc509a6f75849b6942a9ec027d2',
       autoFormatPkNumbers: true,
       templates: []
     };

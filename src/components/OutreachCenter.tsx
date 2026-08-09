@@ -40,9 +40,15 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
       : 'https://wa.yello.bid'
   );
   const [apiToken, setApiToken] = useState(
-    whatsAppConfig.apiToken || 'be70066b8598f3c97dc16e7a712e95b98e773430'
+    whatsAppConfig.apiToken && whatsAppConfig.apiToken !== 'be70066b8598f3c97dc16e7a712e95b98e773430'
+      ? whatsAppConfig.apiToken
+      : 'bef0066b8598f3c97dc16e7af12e95b98e773430'
   );
-  const [instanceId, setInstanceId] = useState(whatsAppConfig.instanceId || 'gateway_01');
+  const [instanceId, setInstanceId] = useState(
+    whatsAppConfig.instanceId && whatsAppConfig.instanceId !== 'gateway_01'
+      ? whatsAppConfig.instanceId
+      : '1765976556c4ca4238a0b923820dcc509a6f75849b6942a9ec027d2'
+  );
   
   const defaultDreamstayMsg = `Hello {{business_name}}! Greetings from Dreamstay. We discovered your listing in {{city}} and would love to partner with you to boost your guest bookings and direct reservations across Pakistan. Let's connect on WhatsApp!`;
   const defaultGlobetrekMsg = `Hello {{business_name}}! Greetings from Globetrek. We noticed your tour & travel operations in {{city}}. We have corporate travel groups looking for premium tours and mountain expeditions. Let's discuss partnership opportunities!`;

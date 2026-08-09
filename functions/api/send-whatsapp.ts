@@ -37,82 +37,48 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       targetUrl = 'https://wa.yello.bid';
     }
 
-    const token = (apiToken || 'be70066b8598f3c97dc16e7a712e95b98e773430').trim();
+    const secretKey = (apiToken || '').trim() || 'bef0066b8598f3c97dc16e7af12e95b98e773430';
+    const accountId = (instanceId || '').trim() || '1765976556c4ca4238a0b923820dcc509a6f75849b6942a9ec027d2';
 
-    // Format number
+    // Format phone to +92 format
     let cleanPhone = (phone || '').replace(/[^\d+]/g, '');
     if (cleanPhone.startsWith('03')) cleanPhone = '+92' + cleanPhone.slice(1);
-    if (cleanPhone.startsWith('923') && !cleanPhone.startsWith('+')) cleanPhone = '+' + cleanPhone;
+    if (!cleanPhone.startsWith('+')) cleanPhone = '+' + cleanPhone;
 
-    const payload = {
-      api_key: token,
-      access_token: token,
-      token: token,
-      secret_key: token,
-      instance_id: instanceId || 'gateway_01',
-      sender: '923293089377',
-      number: cleanPhone,
-      phone: cleanPhone,
-      to: cleanPhone,
-      receiver: cleanPhone,
-      target: cleanPhone,
-      message: message,
-      text: message,
-      msg: message,
-      type: 'text'
-    };
+    const endpoint = `${targetUrl}/api/send/whatsapp`;
 
-    // Candidate endpoints
-    const candidateEndpoints = [
-      `${targetUrl}/api/send-message`,
-      `${targetUrl}/send-message`,
-      `${targetUrl}/api/send`,
-      `${targetUrl}/send`
-    ];
+    const formParams = new URLSearchParams();
+    formParams.append('secret', secretKey);
+    formParams.append('account', accountId);
+    formParams.append('recipient', cleanPhone);
+    formParams.append('message', message || 'Greetings from Globetrek PK!');
+    formParams.append('type', 'text');
 
-    let lastError = '';
-    let successData: any = null;
+    const waResponse = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: formParams.toString()
+    });
 
-    for (const endpoint of candidateEndpoints) {
-      try {
-        const waResponse = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(payload)
-        });
+    const responseText = await waResponse.text();
+    let resData: any = {};
+    try { resData = JSON.parse(responseText); } catch(e) { resData = { raw: responseText }; }
 
-        if (waResponse.ok) {
-          try {
-            successData = await waResponse.json();
-          } catch (e) {
-            successData = { status: 'sent' };
-          }
-          break;
-        } else {
-          let errText = '';
-          try {
-            const errJson = await waResponse.json() as any;
-            errText = errJson.message || errJson.error || errJson.msg || '';
-          } catch(e) {}
-          lastError = `HTTP ${waResponse.status}${errText ? `: ${errText}` : ''}`;
-        }
-      } catch (e: any) {
-        lastError = e.message || 'Fetch failed';
-      }
-    }
-
-    if (successData) {
-      return new Response(JSON.stringify({ success: true, response: successData }), {
+    if (waResponse.ok && resData.status === 200) {
+      return new Response(JSON.stringify({ 
+        success: true, 
+        messageId: resData.data?.messageId || `WA-${Date.now()}`,
+        response: resData 
+      }), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
     return new Response(JSON.stringify({ 
       success: false, 
-      error: lastError || `Failed to connect to ${targetUrl}` 
+      error: resData.message || resData.error || `WhatsApp Gateway Error (HTTP ${waResponse.status})`
     }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' }
