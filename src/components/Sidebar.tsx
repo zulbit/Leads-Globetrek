@@ -13,6 +13,7 @@ import {
   Sparkles,
   Server,
   Share2,
+  Database,
   X
 } from 'lucide-react';
 
@@ -59,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'leads', label: 'Lead Hub & CSV Export', icon: Users },
         { id: 'outreach', label: 'WhatsApp Server Outreach', icon: MessageSquare, badge: 'wa.transmax' },
+        { id: 'outreach-logs', label: 'Outreach History Logs', icon: Database, badge: 'Live Logs' },
         { id: 'tasks', label: 'Tasks & Automation', icon: CheckSquare }
       ]
     }

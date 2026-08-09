@@ -9,6 +9,7 @@ import { DirectoryScraper } from './components/DirectoryScraper';
 import { SocialScraper } from './components/SocialScraper';
 import { LeadManager } from './components/LeadManager';
 import { OutreachCenter } from './components/OutreachCenter';
+import { OutreachLogsView } from './components/OutreachLogsView';
 import { TaskManager } from './components/TaskManager';
 import { Lead, ApifyConfig, WhatsAppConfig, TaskItem, ProjectTag } from './types/scraper';
 import { sendWhatsAppMessage, formatPakistanPhone } from './services/whatsappService';
@@ -613,6 +614,14 @@ export function App() {
               activeProject={activeProject}
               whatsappLogs={whatsappLogs}
               onRefreshLogs={fetchLogs}
+            />
+          )}
+
+          {activeTab === 'outreach-logs' && (
+            <OutreachLogsView
+              whatsappLogs={whatsappLogs}
+              onRefreshLogs={fetchLogs}
+              activeProject={activeProject}
             />
           )}
 
