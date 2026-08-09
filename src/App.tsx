@@ -138,29 +138,7 @@ const INITIAL_LEADS: Lead[] = [
   }
 ];
 
-const INITIAL_TASKS: TaskItem[] = [
-  {
-    id: 't1',
-    title: 'Scrape Murree Guest Houses for Dreamstay',
-    projectTag: 'Dreamstay',
-    category: 'Hotels & Guest Houses',
-    targetCity: 'Murree',
-    status: 'Pending',
-    autoOutreach: true,
-    createdDate: new Date().toLocaleDateString()
-  },
-  {
-    id: 't2',
-    title: 'Extract Skardu Tour Operators for Globetrek',
-    projectTag: 'Globetrek',
-    category: 'Trekking & Expeditions',
-    targetCity: 'Skardu',
-    status: 'Completed',
-    autoOutreach: true,
-    createdDate: new Date().toLocaleDateString(),
-    completedDate: new Date().toLocaleDateString()
-  }
-];
+const INITIAL_TASKS: TaskItem[] = [];
 
 export function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
