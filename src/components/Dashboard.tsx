@@ -1,4 +1,5 @@
 import React from 'react';
+import { PakistanMap } from './PakistanMap';
 import { Lead, ProjectTag } from '../types/scraper';
 import { 
   Users, 
@@ -112,50 +113,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const COLORS = ['#14b8a6', '#f97316', '#3b82f6', '#8b5cf6', '#ec4899', '#10b981'];
 
-  const regions = [
-    {
-      id: 'balochistan',
-      name: 'Balochistan',
-      path: 'M 40 230 L 120 220 L 140 170 L 170 200 L 180 270 L 150 310 L 110 320 L 70 290 Z',
-      centerX: 100,
-      centerY: 240
-    },
-    {
-      id: 'sindh',
-      name: 'Sindh',
-      path: 'M 150 310 L 180 270 L 200 260 L 230 270 L 230 320 L 200 350 L 160 350 Z',
-      centerX: 190,
-      centerY: 310
-    },
-    {
-      id: 'punjab',
-      name: 'Punjab',
-      path: 'M 140 170 L 180 160 L 210 140 L 250 140 L 260 180 L 250 230 L 230 270 L 200 260 L 180 270 L 170 200 Z',
-      centerX: 215,
-      centerY: 200
-    },
-    {
-      id: 'kpk',
-      name: 'Khyber Pakhtunkhwa',
-      path: 'M 120 220 L 100 130 L 140 70 L 165 90 L 165 130 L 180 160 L 140 170 Z',
-      centerX: 140,
-      centerY: 140
-    },
-    {
-      id: 'gb',
-      name: 'Gilgit-Baltistan',
-      path: 'M 140 70 L 185 20 L 240 20 L 265 50 Z',
-      centerX: 200,
-      centerY: 40
-    },
-    {
-      id: 'ajk',
-      name: 'Azad Kashmir',
-      path: 'M 165 90 L 215 95 L 210 140 L 180 160 L 165 130 Z',
-      centerX: 195,
-      centerY: 120
-    }
-  ];
+
 
   return (
     <div className="space-y-6">
@@ -297,75 +255,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
             
-            {/* Interactive SVG outline map of Pakistan */}
-            <div className="md:col-span-3 flex justify-center relative bg-slate-950/60 rounded-xl p-4 border border-slate-850">
-              <svg 
-                viewBox="0 0 320 390" 
-                className="w-full max-h-72 select-none filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
-              >
-                {/* Rendering Provinces paths */}
-                {regions.map((reg) => {
-                  const count = provinceCounts[reg.name] || 0;
-                  const ratio = count / maxProvinceCount;
-                  const isHovered = hoveredRegion === reg.name;
-                  const isSelected = selectedRegion === reg.name;
-
-                  // Define dynamic fill color based on lead count density
-                  let fill = 'rgb(30, 41, 59)'; // Default empty gray
-                  if (count > 0) {
-                    const opacityVal = 0.2 + ratio * 0.7;
-                    fill = `rgba(20, 184, 166, ${opacityVal})`;
-                  }
-
-                  return (
-                    <path
-                      key={reg.id}
-                      d={reg.path}
-                      fill={fill}
-                      stroke={isSelected ? '#14b8a6' : isHovered ? '#2dd4bf' : '#334155'}
-                      strokeWidth={isSelected ? 3.5 : isHovered ? 2.5 : 1.5}
-                      className="transition-all duration-200 cursor-pointer"
-                      style={{
-                        filter: isSelected ? 'drop-shadow(0 0 6px rgba(20, 184, 166, 0.6))' : ''
-                      }}
-                      onMouseEnter={() => setHoveredRegion(reg.name)}
-                      onMouseLeave={() => setHoveredRegion(null)}
-                      onClick={() => setSelectedRegion(selectedRegion === reg.name ? null : reg.name)}
-                    />
-                  );
-                })}
-
-                {/* Islamabad Capital Dot Indicator */}
-                {(() => {
-                  const count = provinceCounts['Islamabad'] || 0;
-                  const isHovered = hoveredRegion === 'Islamabad';
-                  const isSelected = selectedRegion === 'Islamabad';
-                  return (
-                    <circle
-                      cx="205"
-                      cy="145"
-                      r={isSelected ? 7 : isHovered ? 6 : 4.5}
-                      fill={count > 0 ? '#14b8a6' : '#64748b'}
-                      stroke={isSelected ? '#fff' : '#0f172a'}
-                      strokeWidth={1.5}
-                      className="transition-all duration-200 cursor-pointer animate-pulse"
-                      onMouseEnter={() => setHoveredRegion('Islamabad')}
-                      onMouseLeave={() => setHoveredRegion(null)}
-                      onClick={() => setSelectedRegion(selectedRegion === 'Islamabad' ? null : 'Islamabad')}
-                    />
-                  );
-                })()}
-              </svg>
-
-              {/* Floating Map Hover Tooltip */}
-              {hoveredRegion && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-slate-700/80 px-3 py-1.5 rounded-lg shadow-xl text-center text-[10px] pointer-events-none transition-all z-10">
-                  <div className="font-bold text-white text-[11px]">{hoveredRegion}</div>
-                  <div className="text-teal-400 font-medium font-mono mt-0.5">
-                    {provinceCounts[hoveredRegion] || 0} Leads ({totalProvinceLeads > 0 ? Math.round(((provinceCounts[hoveredRegion] || 0)/totalProvinceLeads)*100) : 0}%)
-                  </div>
-                </div>
-              )}
+            {/* Geographically accurate SVG map of Pakistan */}
+            <div className="md:col-span-3 bg-slate-950/60 rounded-xl p-4 border border-slate-800">
+              <PakistanMap
+                provinceCounts={provinceCounts}
+                maxProvinceCount={maxProvinceCount}
+                totalProvinceLeads={totalProvinceLeads}
+                hoveredRegion={hoveredRegion}
+                selectedRegion={selectedRegion}
+                onHover={setHoveredRegion}
+                onClick={(region) => setSelectedRegion(selectedRegion === region ? null : region)}
+              />
             </div>
 
             {/* Density progress breakdown list on the right */}
