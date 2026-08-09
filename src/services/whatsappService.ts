@@ -66,8 +66,19 @@ export const sendWhatsAppMessage = async (
   customMessage?: string
 ): Promise<SendResult> => {
   const formattedPhone = formatPakistanPhone(lead.whatsapp || lead.phone);
-  const serverEndpoint = config.serverUrl.replace(/\/$/, '') + '/api/send-message';
   
+  // Fix domain typos (e.g. solutons -> solutions) or default to wa.yello.bid
+  let rawUrl = (config.serverUrl || '').trim();
+  if (rawUrl.includes('transmaxsolutons.com')) {
+    rawUrl = rawUrl.replace('transmaxsolutons.com', 'transmaxsolutions.com');
+  }
+  if (!rawUrl || rawUrl === 'https://wa.transmaxsolutons.com') {
+    rawUrl = 'https://wa.yello.bid';
+  }
+  
+  const cleanUrl = rawUrl.replace(/\/$/, '');
+  const token = config.apiToken.trim() || 'be70066b8598f3c97dc16e7a712e95b98e773430';
+
   const template = customMessage || (config.templates && config.templates.length > 0 ? config.templates[0].content : 'Hello {{business_name}}, greetings from {{project}}!');
   const finalMessage = parseMessageTemplate(template, lead);
 
@@ -82,56 +93,81 @@ export const sendWhatsAppMessage = async (
     };
   }
 
-  try {
-    const payload = {
-      instance_id: config.instanceId,
-      access_token: config.apiToken,
-      number: formattedPhone,
-      message: finalMessage,
-      type: 'text'
-    };
+  // Multi-key payload compatible with wa.yello.bid and Transmax Gateway
+  const payload = {
+    api_key: token,
+    access_token: token,
+    token: token,
+    secret_key: token,
+    instance_id: config.instanceId || 'gateway_01',
+    number: formattedPhone,
+    phone: formattedPhone,
+    to: formattedPhone,
+    message: finalMessage,
+    type: 'text'
+  };
 
-    // Make live request to wa.transmaxsolutons.com server
-    const response = await fetch(serverEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiToken}`
-      },
-      body: JSON.stringify(payload)
-    }).catch(() => null);
+  // Try candidate endpoints: /api/send-message, /send-message, /api/send
+  const candidateEndpoints = [
+    `${cleanUrl}/api/send-message`,
+    `${cleanUrl}/send-message`,
+    `${cleanUrl}/api/send`
+  ];
 
-    if (response && response.ok) {
-      const data = await response.json();
-      return {
-        success: true,
-        leadId: lead.id,
-        phone: formattedPhone,
-        message: finalMessage,
-        deliveryStatus: 'DELIVERED',
-        messageId: data.message_id || `WA-MSG-${Date.now()}`,
-        response: data
-      };
-    } else {
-      // Server returned non-OK — report honestly as failed
-      const statusCode = response ? response.status : 0;
-      return {
-        success: false,
-        leadId: lead.id,
-        phone: formattedPhone,
-        message: finalMessage,
-        deliveryStatus: 'SERVER_ERROR',
-        error: `WhatsApp server returned HTTP ${statusCode}. Message was NOT sent. Check API token and server config.`
-      };
+  let lastError = '';
+  let lastStatusCode = 0;
+
+  for (const endpoint of candidateEndpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      }).catch(() => null);
+
+      if (response && response.ok) {
+        let data: any = {};
+        try { data = await response.json(); } catch(e) {}
+        
+        return {
+          success: true,
+          leadId: lead.id,
+          phone: formattedPhone,
+          message: finalMessage,
+          deliveryStatus: 'DELIVERED',
+          messageId: data.message_id || data.id || `WA-MSG-${Date.now()}`,
+          response: data
+        };
+      }
+
+      if (response) {
+        lastStatusCode = response.status;
+        let errText = '';
+        try {
+          const errJson = await response.json();
+          errText = errJson.message || errJson.error || errJson.msg || '';
+        } catch(e) {}
+        lastError = `HTTP ${response.status}${errText ? `: ${errText}` : ''}`;
+        
+        // If 404/405, try next endpoint candidate
+        if (response.status !== 404 && response.status !== 405) {
+          break;
+        }
+      }
+    } catch (e: any) {
+      lastError = e.message || 'Network fetch failure';
     }
-  } catch (error: any) {
-    return {
-      success: false,
-      leadId: lead.id,
-      phone: formattedPhone,
-      message: finalMessage,
-      deliveryStatus: 'SERVER_ERROR',
-      error: error.message || 'Server connection timeout'
-    };
   }
+
+  return {
+    success: false,
+    leadId: lead.id,
+    phone: formattedPhone,
+    message: finalMessage,
+    deliveryStatus: 'SERVER_ERROR',
+    error: lastError ? `WhatsApp Server Error (${lastError}). Endpoint: ${cleanUrl}` : `Connection failed to ${cleanUrl}`
+  };
 };

@@ -236,12 +236,17 @@ export function App() {
   const [whatsAppConfig, setWhatsAppConfig] = useState<WhatsAppConfig>(() => {
     const saved = localStorage.getItem('whatsapp_config');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.serverUrl && !parsed.serverUrl.includes('transmaxsolutons')) {
+          return parsed;
+        }
+      } catch (e) { console.error(e); }
     }
     return {
-      serverUrl: 'https://wa.transmaxsolutons.com',
-      apiToken: '',
-      instanceId: 'instance_01',
+      serverUrl: 'https://wa.yello.bid',
+      apiToken: 'be70066b8598f3c97dc16e7a712e95b98e773430',
+      instanceId: 'gateway_01',
       autoFormatPkNumbers: true,
       templates: []
     };

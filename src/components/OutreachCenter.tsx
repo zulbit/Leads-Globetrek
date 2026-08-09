@@ -34,9 +34,15 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
   whatsappLogs,
   onRefreshLogs
 }) => {
-  const [serverUrl, setServerUrl] = useState(whatsAppConfig.serverUrl || 'https://wa.transmaxsolutons.com');
-  const [apiToken, setApiToken] = useState(whatsAppConfig.apiToken || '');
-  const [instanceId, setInstanceId] = useState(whatsAppConfig.instanceId || 'instance_01');
+  const [serverUrl, setServerUrl] = useState(
+    whatsAppConfig.serverUrl && !whatsAppConfig.serverUrl.includes('transmaxsolutons')
+      ? whatsAppConfig.serverUrl
+      : 'https://wa.yello.bid'
+  );
+  const [apiToken, setApiToken] = useState(
+    whatsAppConfig.apiToken || 'be70066b8598f3c97dc16e7a712e95b98e773430'
+  );
+  const [instanceId, setInstanceId] = useState(whatsAppConfig.instanceId || 'gateway_01');
   
   const defaultDreamstayMsg = `Hello {{business_name}}! Greetings from Dreamstay. We discovered your listing in {{city}} and would love to partner with you to boost your guest bookings and direct reservations across Pakistan. Let's connect on WhatsApp!`;
   const defaultGlobetrekMsg = `Hello {{business_name}}! Greetings from Globetrek. We noticed your tour & travel operations in {{city}}. We have corporate travel groups looking for premium tours and mountain expeditions. Let's discuss partnership opportunities!`;
@@ -81,7 +87,7 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
   const [aiError, setAiError] = useState<string | null>(null);
   const [isSendingSingle, setIsSendingSingle] = useState(false);
 
-  const [testPhone, setTestPhone] = useState('+923132576390');
+  const [testPhone, setTestPhone] = useState('+923490386131');
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
