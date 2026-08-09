@@ -23,30 +23,47 @@ export function Login({ onLoginSuccess }: LoginProps) {
     setError('');
 
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      });
+      let apiSuccess = false;
+      let apiToken = '';
+      let apiError = '';
 
-      const contentType = res.headers.get('content-type');
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
 
-      if (res.ok && contentType && contentType.includes('application/json')) {
-        const data = await res.json();
-        if (data.success) {
-          setSuccess(true);
-          setError('');
-          setTimeout(() => {
-            onLoginSuccess(data.token);
-          }, 800);
-          return;
-        } else {
-          setError(data.error || 'Incorrect passcode. Please try again.');
-          return;
+        const contentType = res.headers.get('content-type');
+        if (res.ok && contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data.success) {
+            apiSuccess = true;
+            apiToken = data.token;
+          } else {
+            apiError = data.error || 'Incorrect passcode. Please try again.';
+          }
         }
+      } catch (e) {
+        // Backend API unavailable locally (e.g. running standalone Vite dev server)
+        console.warn('Backend login API unavailable locally, checking passcode directly.', e);
       }
 
-      // Fallback for local dev server (when Cloudflare Functions /api/login endpoint returns HTML or is unreachable)
+      if (apiSuccess) {
+        setSuccess(true);
+        setError('');
+        setTimeout(() => {
+          onLoginSuccess(apiToken);
+        }, 800);
+        return;
+      }
+
+      if (apiError) {
+        setError(apiError);
+        return;
+      }
+
+      // Fallback validation for local development and offline environments
       if (password === 'globetrek2026') {
         setSuccess(true);
         setError('');

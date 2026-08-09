@@ -168,9 +168,46 @@ export function App() {
   
   // Cloudflare D1 Cloud SQLite Database Integration Active & Authorized
   const [sessionToken, setSessionToken] = useState<string | null>(() => localStorage.getItem('access_token'));
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [leads, setLeads] = useState<Lead[]>(() => {
+    const saved = localStorage.getItem('pk_leads_backup');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return INITIAL_LEADS;
+  });
+
+  const [tasks, setTasks] = useState<TaskItem[]>(() => {
+    const saved = localStorage.getItem('pk_tasks_backup');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return INITIAL_TASKS;
+  });
+
   const [isLoadingDB, setIsLoadingDB] = useState(true);
+
+  // Sync leads & tasks back to local storage
+  useEffect(() => {
+    if (leads.length > 0) {
+      localStorage.setItem('pk_leads_backup', JSON.stringify(leads));
+    }
+  }, [leads]);
+
+  useEffect(() => {
+    if (tasks.length > 0) {
+      localStorage.setItem('pk_tasks_backup', JSON.stringify(tasks));
+    }
+  }, [tasks]);
 
   const handleLoginSuccess = (token: string) => {
     localStorage.setItem('access_token', token);
@@ -180,8 +217,6 @@ export function App() {
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     setSessionToken(null);
-    setLeads([]);
-    setTasks([]);
   };
 
   const [apifyConfig, setApifyConfig] = useState<ApifyConfig>(() => {
@@ -230,9 +265,12 @@ export function App() {
         headers: { 'Authorization': `Bearer ${sessionToken}` }
       });
       if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setWhatsappLogs(data);
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setWhatsappLogs(data);
+          }
         }
       }
     } catch (err) {
@@ -252,8 +290,6 @@ export function App() {
         const headers = { 'Authorization': `Bearer ${sessionToken}` };
         
         const leadsRes = await fetch('/api/leads', { headers });
-        let initialLeadsList = INITIAL_LEADS;
-        
         if (leadsRes.status === 401) {
           handleLogout();
           return;
@@ -262,15 +298,13 @@ export function App() {
         const leadsType = leadsRes.headers.get('content-type');
         if (leadsRes.ok && leadsType && leadsType.includes('application/json')) {
           const data = await leadsRes.json();
-          if (Array.isArray(data)) {
-            initialLeadsList = data.length > 0 ? data : INITIAL_LEADS;
+          if (Array.isArray(data) && data.length > 0) {
+            setLeads(data);
+            localStorage.setItem('pk_leads_backup', JSON.stringify(data));
           }
         }
-        setLeads(initialLeadsList);
 
         const tasksRes = await fetch('/api/tasks', { headers });
-        let initialTasksList = INITIAL_TASKS;
-        
         if (tasksRes.status === 401) {
           handleLogout();
           return;
@@ -279,22 +313,20 @@ export function App() {
         const tasksType = tasksRes.headers.get('content-type');
         if (tasksRes.ok && tasksType && tasksType.includes('application/json')) {
           const data = await tasksRes.json();
-          if (Array.isArray(data)) {
-            initialTasksList = data;
+          if (Array.isArray(data) && data.length > 0) {
+            setTasks(data);
+            localStorage.setItem('pk_tasks_backup', JSON.stringify(data));
           }
         }
-        setTasks(initialTasksList);
 
         const logsRes = await fetch('/api/whatsapp-logs', { headers });
-        let initialLogsList = [];
         const logsType = logsRes.headers.get('content-type');
         if (logsRes.ok && logsType && logsType.includes('application/json')) {
           const data = await logsRes.json();
           if (Array.isArray(data)) {
-            initialLogsList = data;
+            setWhatsappLogs(data);
           }
         }
-        setWhatsappLogs(initialLogsList);
 
       } catch (err) {
         console.error("Failed to fetch leads or tasks from D1 database", err);
@@ -305,9 +337,9 @@ export function App() {
     initDatabase();
   }, [sessionToken]);
 
-  // Sync changes back to D1 Database
+  // Sync changes back to D1 Database (only when connected to actual backend)
   useEffect(() => {
-    if (!isLoadingDB && sessionToken) {
+    if (!isLoadingDB && sessionToken && leads.length > 0) {
       fetch('/api/leads', {
         method: 'POST',
         headers: { 
