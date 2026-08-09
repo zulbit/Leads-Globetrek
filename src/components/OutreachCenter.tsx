@@ -51,7 +51,29 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
   );
   
   const defaultDreamstayMsg = `Hello {{business_name}}! Greetings from Dreamstay. We discovered your listing in {{city}} and would love to partner with you to boost your guest bookings and direct reservations across Pakistan. Let's connect on WhatsApp!`;
-  const defaultGlobetrekMsg = `Hello {{business_name}}! Greetings from Globetrek. We noticed your tour & travel operations in {{city}}. We have corporate travel groups looking for premium tours and mountain expeditions. Let's discuss partnership opportunities!`;
+  const defaultGlobetrekMsg = `*GlobeTrek PK — Vendor Onboarding* 🌍✈️
+
+Dear *{{business_name}}*,
+
+Welcome to *GlobeTrek* — Pakistan’s first fully AI-powered travel & tourism portal!
+
+Seamlessly discover and manage global tours, visas, travel insurance, and ticketing all in one place.
+
+Ready to expand your reach in *{{city}}*? Enroll your travel business for *FREE* today and connect with thousands of active travelers across Pakistan. 🚀
+
+━━━━━━━━━━━━━━━━━━━
+🌐 *Explore GlobeTrek Portal:*
+https://globetrek.testbench.shop/
+
+✍️ *Register Your Business (Free):*
+https://globetrek.testbench.shop/auth?mode=signin
+
+📖 *Vendor Onboarding Guide:*
+https://globetrek.testbench.shop/vendor-guide
+━━━━━━━━━━━━━━━━━━━
+
+Best regards,
+*GlobeTrek Operations Team* 🌴`;
 
   const [messageTemplate, setMessageTemplate] = useState(
     activeProject === 'Dreamstay' ? defaultDreamstayMsg : defaultGlobetrekMsg
@@ -329,7 +351,7 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
-                wa.transmaxsolutons.com Server Client
+                {serverUrl ? serverUrl.replace(/^https?:\/\//, '') : 'wa.yello.bid'} Server Client
               </span>
             </div>
             <h2 className="text-xl font-bold text-white mt-1">WhatsApp & Email Campaign Center</h2>
@@ -587,7 +609,7 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
                   </>
                 ) : (
                   <>
-                    <Send className="w-5 h-5" /> Launch WhatsApp Campaign via wa.transmaxsolutons.com
+                    <Send className="w-5 h-5" /> Launch WhatsApp Campaign via {serverUrl ? serverUrl.replace(/^https?:\/\//, '') : 'wa.yello.bid'}
                   </>
                 )}
               </button>
