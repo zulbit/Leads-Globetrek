@@ -141,7 +141,7 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
       createdAt: new Date().toISOString()
     };
 
-    const customMsg = `🧪 Test Connection Successful! Your WhatsApp API server (${testConfig.serverUrl}) is live & ready for ${activeProject} outreach.`;
+    const customMsg = `🧪 Test Connection Successful! Your WhatsApp API server (${testConfig.serverUrl}) is live & ready for ${activeProject} leads at https://leads-globetrek.pages.dev/`;
 
     const result = await sendWhatsAppMessage(testConfig, sampleLead, customMsg);
 
