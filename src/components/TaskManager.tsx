@@ -229,10 +229,17 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 
       {/* Task List */}
       <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800 shadow-lg space-y-4">
-        <h3 className="font-bold text-white text-base">Active & Completed Tasks ({tasks.length})</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-white text-base">Active & Completed Tasks ({activeProject})</h3>
+          <span className="text-xs text-purple-400 font-semibold font-mono">
+            {tasks.filter(t => activeProject === 'General' || t.projectTag === activeProject).length} tasks
+          </span>
+        </div>
 
         <div className="space-y-3">
-          {tasks.map((task) => (
+          {tasks
+            .filter(t => activeProject === 'General' || t.projectTag === activeProject)
+            .map((task) => (
             <div
               key={task.id}
               className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
@@ -291,6 +298,13 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
               </div>
             </div>
           ))}
+
+          {tasks.filter(t => activeProject === 'General' || t.projectTag === activeProject).length === 0 && (
+            <div className="py-8 text-center text-slate-500 text-xs">
+              <CheckSquare className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+              No active or completed automation tasks scheduled for {activeProject}.
+            </div>
+          )}
         </div>
       </div>
     </div>
