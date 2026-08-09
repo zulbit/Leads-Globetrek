@@ -12,7 +12,9 @@ import {
   Code2,
   Search,
   Database,
-  RefreshCw 
+  RefreshCw,
+  Shield,
+  CheckCheck 
 } from 'lucide-react';
 
 interface OutreachCenterProps {
@@ -48,6 +50,9 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
     whatsAppConfig.instanceId && whatsAppConfig.instanceId !== 'gateway_01'
       ? whatsAppConfig.instanceId
       : '1765976556c4ca4238a0b923820dcc509a6f75849b6942a9ec027d2'
+  );
+  const [sendIntervalSeconds, setSendIntervalSeconds] = useState(
+    whatsAppConfig.sendIntervalSeconds || 8
   );
   
   const defaultDreamstayMsg = `Hello {{business_name}}! Greetings from Dreamstay. We discovered your listing in {{city}} and would love to partner with you to boost your guest bookings and direct reservations across Pakistan. Let's connect on WhatsApp!`;
@@ -233,7 +238,10 @@ Best regards,
         setBatchLog(prev => [...prev, `❌ Failed for ${lead.title}: ${result.error}`]);
       }
 
-      await new Promise(r => setTimeout(r, 600));
+      // Configurable anti-spam delay + random jitter to protect number from WhatsApp ban
+      const delayMs = (sendIntervalSeconds || 8) * 1000 + Math.floor(Math.random() * 2500);
+      setBatchLog(prev => [...prev, `⏳ Anti-spam pause for ${(delayMs / 1000).toFixed(1)}s before next dispatch...`]);
+      await new Promise(r => setTimeout(r, delayMs));
     }
 
     setLeads(updatedLeads);
@@ -412,6 +420,34 @@ Best regards,
                   placeholder="e.g. +923132576390"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-teal-300 font-mono text-xs focus:outline-none focus:border-emerald-500"
                 />
+              </div>
+
+              <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <label className="text-slate-300 font-semibold flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-emerald-400" /> Anti-Spam Delay Interval
+                  </label>
+                  <span className="text-[11px] text-emerald-400 font-mono font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800/50">
+                    {sendIntervalSeconds}s pause
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="3"
+                    max="30"
+                    step="1"
+                    value={sendIntervalSeconds}
+                    onChange={(e) => setSendIntervalSeconds(Number(e.target.value))}
+                    className="w-full accent-emerald-500 bg-slate-900 rounded-lg cursor-pointer h-1.5"
+                  />
+                  <span className="text-xs font-mono text-white bg-slate-900 px-2 py-1 rounded border border-slate-800 shrink-0 font-bold">
+                    {sendIntervalSeconds}s
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  <span className="text-amber-400 font-bold">Anti-Ban Protection:</span> Pauses {sendIntervalSeconds}s + random jitter between messages to keep your WhatsApp number safe.
+                </p>
               </div>
 
               {testResult && (
@@ -675,12 +711,20 @@ Best regards,
                               {new Date(log.sentAt).toLocaleString()}
                             </td>
                             <td className="py-2.5 px-3 text-right">
-                              <span className={`inline-flex px-2 py-0.5 rounded-[5px] text-[10px] font-bold ${
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold ${
                                 isSuccess 
-                                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/40' 
-                                  : 'bg-red-950 text-red-400 border border-red-800/40'
+                                  ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/60' 
+                                  : 'bg-red-950/80 text-red-300 border border-red-800/60'
                               }`}>
-                                {isSuccess ? 'DELIVERED' : 'FAILED'}
+                                {isSuccess ? (
+                                  <>
+                                    <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> DELIVERED
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertCircle className="w-3.5 h-3.5 text-red-400" /> FAILED
+                                  </>
+                                )}
                               </span>
                             </td>
                           </tr>

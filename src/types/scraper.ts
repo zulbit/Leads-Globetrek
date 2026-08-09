@@ -69,6 +69,7 @@ export interface WhatsAppConfig {
   serverUrl: string;
   apiToken: string;
   instanceId: string;
+  sendIntervalSeconds?: number;
   autoFormatPkNumbers: boolean;
   templates: WhatsAppTemplate[];
 }
