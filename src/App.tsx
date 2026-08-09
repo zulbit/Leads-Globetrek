@@ -165,7 +165,10 @@ export function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          // Filter out legacy demo tasks ('t1', 't2')
+          return parsed.filter((t: any) => t.id !== 't1' && t.id !== 't2');
+        }
       } catch (e) {
         console.error(e);
       }
