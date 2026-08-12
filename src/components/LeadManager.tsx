@@ -517,8 +517,19 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
                           </div>
                         )}
                         {lead.notes && (
-                          <div className="text-[10px] text-amber-400/80 mt-1 italic">
-                            {lead.notes}
+                          <div className={`mt-1.5 p-2 rounded-lg text-[11px] font-medium border leading-relaxed ${
+                            lead.notes.includes('Inbound WhatsApp:')
+                              ? 'bg-purple-950/70 border-purple-700/80 text-purple-200 shadow-inner'
+                              : lead.notes.includes('Converted:')
+                              ? 'bg-emerald-950/70 border-emerald-700/80 text-emerald-200'
+                              : 'bg-slate-950/80 border-slate-800 text-amber-300/90'
+                          }`}>
+                            <span className="font-bold flex items-center gap-1 mb-0.5">
+                              {lead.notes.includes('Inbound WhatsApp:') ? '💬 Vendor WhatsApp Reply:' : lead.notes.includes('Converted:') ? '🎉 Partner Status:' : '📝 Internal Note:'}
+                            </span>
+                            <div className="whitespace-pre-wrap font-sans text-slate-200">
+                              {lead.notes.replace('Inbound WhatsApp:', '').replace('🎉 Converted:', '').trim()}
+                            </div>
                           </div>
                         )}
                       </td>

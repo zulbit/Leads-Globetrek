@@ -26,21 +26,23 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'delivered' | 'failed'>('all');
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'delivered' | 'inbound' | 'failed'>('all');
 
   const filteredProjectLogs = whatsappLogs.filter(l => 
     activeProject === 'General' || l.projectTag === activeProject
   );
 
-  const totalSent = filteredProjectLogs.length;
+  const totalSent = filteredProjectLogs.filter(l => l.serverResponse !== 'INBOUND_REPLY').length;
+  const totalInbound = filteredProjectLogs.filter(l => l.serverResponse === 'INBOUND_REPLY').length;
   const totalDelivered = filteredProjectLogs.filter(l => l.serverResponse === 'DELIVERED').length;
-  const totalFailed = totalSent - totalDelivered;
+  const totalFailed = filteredProjectLogs.filter(l => l.serverResponse !== 'DELIVERED' && l.serverResponse !== 'INBOUND_REPLY').length;
   const successRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0;
 
   const displayLogs = filteredProjectLogs
     .filter(l => {
       if (selectedFilter === 'delivered') return l.serverResponse === 'DELIVERED';
-      if (selectedFilter === 'failed') return l.serverResponse !== 'DELIVERED';
+      if (selectedFilter === 'inbound') return l.serverResponse === 'INBOUND_REPLY';
+      if (selectedFilter === 'failed') return l.serverResponse !== 'DELIVERED' && l.serverResponse !== 'INBOUND_REPLY';
       return true;
     })
     .filter(l => {
@@ -157,7 +159,17 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              All Logs ({totalSent})
+              All Logs ({filteredProjectLogs.length})
+            </button>
+            <button
+              onClick={() => setSelectedFilter('inbound')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                selectedFilter === 'inbound'
+                  ? 'bg-purple-950 text-purple-300 border border-purple-800/60 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              📥 Inbound Replies ({totalInbound})
             </button>
             <button
               onClick={() => setSelectedFilter('delivered')}
@@ -189,22 +201,30 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
               <tr>
                 <th className="py-3 px-4">Lead Recipient</th>
                 <th className="py-3 px-4">WhatsApp Number</th>
-                <th className="py-3 px-4">Dispatched Message Content</th>
-                <th className="py-3 px-4">Sent Timestamp</th>
-                <th className="py-3 px-4 text-right">Delivery Status</th>
+                <th className="py-3 px-4">Message / Response Content</th>
+                <th className="py-3 px-4">Timestamp</th>
+                <th className="py-3 px-4 text-right">Event Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
               {displayLogs.map((log) => {
+                const isInbound = log.serverResponse === 'INBOUND_REPLY';
                 const isSuccess = log.serverResponse === 'DELIVERED';
                 return (
-                  <tr key={log.id} className="hover:bg-slate-850/50 transition-colors">
+                  <tr key={log.id} className={`transition-colors ${isInbound ? 'bg-purple-950/20 hover:bg-purple-950/30' : 'hover:bg-slate-850/50'}`}>
                     <td className="py-3 px-4 font-semibold text-white">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-teal-400 font-bold text-xs shrink-0">
-                          {(log.businessName || 'L').charAt(0).toUpperCase()}
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                          isInbound ? 'bg-purple-900 text-purple-200' : 'bg-slate-800 text-teal-400'
+                        }`}>
+                          {isInbound ? '📥' : (log.businessName || 'L').charAt(0).toUpperCase()}
                         </div>
-                        <span className="truncate">{log.businessName || 'Unknown Business'}</span>
+                        <div>
+                          <span className="truncate block">{log.businessName || 'Unknown Business'}</span>
+                          {isInbound && (
+                            <span className="text-[10px] text-purple-400 font-semibold">Vendor WhatsApp Reply</span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="py-3 px-4">
@@ -213,8 +233,12 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
                       </span>
                     </td>
                     <td className="py-3 px-4 max-w-md">
-                      <div className="font-mono text-[11px] text-slate-300 bg-slate-950 p-2 rounded-lg border border-slate-800/80 whitespace-pre-wrap max-h-24 overflow-y-auto leading-relaxed">
-                        {log.message}
+                      <div className={`font-mono text-[11px] p-2.5 rounded-lg border whitespace-pre-wrap max-h-24 overflow-y-auto leading-relaxed ${
+                        isInbound 
+                          ? 'bg-purple-950/60 border-purple-700/60 text-purple-200 font-semibold shadow-inner' 
+                          : 'bg-slate-950 border-slate-800/80 text-slate-300'
+                      }`}>
+                        {isInbound ? `💬 "${log.message}"` : log.message}
                       </div>
                     </td>
                     <td className="py-3 px-4 text-slate-400 font-mono text-[11px] whitespace-nowrap">
@@ -224,21 +248,19 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
                       </div>
                     </td>
                     <td className="py-3 px-4 text-right whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-extrabold ${
-                        isSuccess 
-                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/60 shadow-sm shadow-emerald-950' 
-                          : 'bg-red-950 text-red-300 border border-red-700/60 shadow-sm shadow-red-950'
-                      }`}>
-                        {isSuccess ? (
-                          <>
-                            <CheckCheck className="w-4 h-4 text-emerald-400" /> DELIVERED
-                          </>
-                        ) : (
-                          <>
-                            <AlertCircle className="w-4 h-4 text-red-400" /> FAILED
-                          </>
-                        )}
-                      </span>
+                      {isInbound ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-extrabold bg-purple-950 text-purple-300 border border-purple-700/60 shadow-sm shadow-purple-950">
+                          📥 INBOUND REPLY
+                        </span>
+                      ) : isSuccess ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-extrabold bg-emerald-950 text-emerald-300 border border-emerald-700/60 shadow-sm shadow-emerald-950">
+                          <CheckCheck className="w-4 h-4 text-emerald-400" /> DELIVERED
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-extrabold bg-red-950 text-red-300 border border-red-700/60 shadow-sm shadow-red-950">
+                          <AlertCircle className="w-4 h-4 text-red-400" /> FAILED
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );

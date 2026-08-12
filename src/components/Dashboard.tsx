@@ -532,11 +532,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {displayLeads.slice(0, 6).map((lead) => (
                 <tr key={lead.id} className="hover:bg-slate-800/40 transition-colors">
                   <td className="py-3 px-4 font-semibold text-white">
-                    {lead.title}
-                    {lead.rating && (
-                      <span className="ml-2 text-[10px] text-amber-400 bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-800/40">
-                        ★ {lead.rating}
-                      </span>
+                    <div className="flex items-center gap-1.5">
+                      <span>{lead.title}</span>
+                      {lead.rating && (
+                        <span className="text-[10px] text-amber-400 bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-800/40 font-bold">
+                          ★ {lead.rating}
+                        </span>
+                      )}
+                    </div>
+                    {lead.notes?.includes('Inbound WhatsApp:') && (
+                      <div className="mt-1 text-[10px] font-normal text-purple-300 bg-purple-950/70 border border-purple-800/80 px-2 py-0.5 rounded flex items-center gap-1 max-w-xs truncate">
+                        <span>💬</span> <span className="truncate">{lead.notes.replace('Inbound WhatsApp:', '').trim()}</span>
+                      </div>
                     )}
                   </td>
                   <td className="py-3 px-4 text-slate-400">{lead.category}</td>
