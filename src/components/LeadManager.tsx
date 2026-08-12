@@ -248,7 +248,12 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
                 </span>
               )}
             </div>
-            <h2 className="text-xl font-bold text-white mt-1">Lead Groups & Campaign Manager ({filteredLeads.length} leads)</h2>
+            <h2 className="text-xl font-bold text-white mt-1 flex items-center gap-2 flex-wrap">
+              <span>Lead & Vendor Hub</span>
+              <span className="text-xs font-bold text-teal-300 bg-teal-950 px-3 py-1 rounded-full border border-teal-800 shadow-sm">
+                {filteredLeads.length} {activeProject === 'Dreamstay' ? (filteredLeads.length === 1 ? 'Hotel/Property' : 'Hotels & Guest Houses') : (filteredLeads.length === 1 ? 'Tour Operator' : 'Tour Operators')} {selectedCity !== 'ALL' ? `in ${selectedCity}` : 'Total'}
+              </span>
+            </h2>
             <p className="text-xs text-slate-400">Group leads into custom lists (e.g. FB Karachi - Contacted), track history & schedule reminders.</p>
           </div>
         </div>
@@ -405,6 +410,34 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
 
       {/* Main Table */}
       <div className="bg-slate-900/80 rounded-2xl border border-slate-800 shadow-lg overflow-hidden">
+        {/* Active Filter Summary Bar at Top of Table */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-5 py-3 bg-slate-950/80 border-b border-slate-800 text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-slate-400 font-medium">Operators Count:</span>
+            <span className="text-teal-300 font-extrabold text-sm bg-teal-950 px-2.5 py-0.5 rounded-lg border border-teal-800">
+              {filteredLeads.length} {activeProject === 'Dreamstay' ? (filteredLeads.length === 1 ? 'Hotel/Property' : 'Hotels & Guest Houses') : (filteredLeads.length === 1 ? 'Tour Operator' : 'Tour Operators')}
+            </span>
+            {selectedCity !== 'ALL' && (
+              <span className="px-2.5 py-0.5 rounded-lg bg-teal-900/40 text-teal-300 border border-teal-700/60 font-bold flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-teal-400" /> City: {selectedCity}
+              </span>
+            )}
+            {selectedStatus !== 'ALL' && (
+              <span className="px-2.5 py-0.5 rounded-lg bg-slate-800 text-slate-300 font-medium">
+                Status: {selectedStatus}
+              </span>
+            )}
+            {selectedGroupTag !== 'ALL' && (
+              <span className="px-2.5 py-0.5 rounded-lg bg-purple-950 text-purple-300 border border-purple-800 font-medium">
+                🏷️ {selectedGroupTag}
+              </span>
+            )}
+          </div>
+          <div className="text-[11px] text-slate-400 font-mono">
+            {selectedCity !== 'ALL' ? `Filtered by ${selectedCity} (${filteredLeads.length} matching)` : `Showing all cities (${filteredLeads.length} total)`}
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="bg-slate-950 text-slate-400 uppercase font-semibold text-[11px] border-b border-slate-800">
@@ -423,7 +456,6 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
                 <th className="py-3 px-4">Contacted History</th>
                 <th className="py-3 px-4">Follow-up Schedule</th>
                 <th className="py-3 px-4">Website Health</th>
-                <th className="py-3 px-4">Trustpilot Reviews</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -431,7 +463,7 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
             <tbody className="divide-y divide-slate-800/60">
               {filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center">
+                  <td colSpan={9} className="py-12 text-center">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
                         <Users className="w-6 h-6" />
@@ -600,32 +632,6 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
                           </span>
                         )}
                       </div>
-                    </td>
-
-                    {/* Trustpilot Review Audit Column */}
-                    <td className="py-3 px-4">
-                      {lead.trustpilotScore ? (
-                        <a
-                          href={lead.trustpilotUrl || `https://www.trustpilot.com/search?query=${encodeURIComponent(lead.title)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="space-y-0.5 group block"
-                        >
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 inline-flex items-center gap-1 group-hover:bg-emerald-900 transition-all">
-                            ⭐ {lead.trustpilotScore} ({lead.trustpilotReviews || 0} reviews) <ExternalLink className="w-2.5 h-2.5" />
-                          </span>
-                          <div className="text-[9px] text-emerald-400 font-semibold">{lead.trustpilotStatus || 'Verified Profile'}</div>
-                        </a>
-                      ) : (
-                        <a
-                          href={`https://www.trustpilot.com/search?query=${encodeURIComponent(lead.title)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-400 border border-slate-700 hover:text-white inline-flex items-center gap-1"
-                        >
-                          🚫 No Trustpilot Profile
-                        </a>
-                      )}
                     </td>
 
                     <td className="py-3 px-4">

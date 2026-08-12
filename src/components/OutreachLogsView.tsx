@@ -35,7 +35,7 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
   const totalSent = filteredProjectLogs.length;
   const totalDelivered = filteredProjectLogs.filter(l => l.serverResponse === 'DELIVERED').length;
   const totalFailed = totalSent - totalDelivered;
-  const successRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 100;
+  const successRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0;
 
   const displayLogs = filteredProjectLogs
     .filter(l => {
