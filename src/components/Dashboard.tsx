@@ -296,7 +296,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
             
             {/* Geographically accurate SVG map of Pakistan with precise city pins */}
-            <div className="md:col-span-3 bg-slate-950/60 rounded-xl p-4 border border-slate-800">
+            <div className="md:col-span-3 bg-gradient-to-b from-slate-900 to-slate-950 rounded-2xl p-5 border border-slate-700/60 shadow-inner">
               <PakistanMap
                 provinceCounts={provinceCounts}
                 cityStats={cityStats}

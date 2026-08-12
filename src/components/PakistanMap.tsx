@@ -317,10 +317,27 @@ export const PakistanMap: React.FC<PakistanMapProps> = ({
           </radialGradient>
         </defs>
 
-        {/* Base Pakistan Map Outline - Clean & Precise */}
+        {/* Base Pakistan Map Outline - Clean, Lighter & Crisp */}
         {PAKISTAN_PROVINCES.map((province) => {
           const isHovered = hoveredRegion === province.name;
           const isSelected = selectedRegion === province.name;
+          const provCount = provinceCounts[province.name] || 0;
+          const hasLeads = provCount > 0;
+
+          // Crisp, lighter slate palette for clear geographic visibility
+          let fillColor = hasLeads ? '#1e293b' : '#151f2e';
+          if (isSelected) {
+            fillColor = '#0d383b';
+          } else if (isHovered) {
+            fillColor = '#1f334d';
+          }
+
+          let strokeColor = hasLeads ? '#475569' : '#334155';
+          if (isSelected) {
+            strokeColor = '#2dd4bf';
+          } else if (isHovered) {
+            strokeColor = '#38bdf8';
+          }
 
           return (
             <g
@@ -334,9 +351,9 @@ export const PakistanMap: React.FC<PakistanMapProps> = ({
                 <path
                   key={`${province.id}-${i}`}
                   d={d}
-                  fill={isSelected ? '#0f2930' : isHovered ? '#142738' : '#090d16'}
-                  stroke={isSelected ? '#14b8a6' : isHovered ? '#2dd4bf' : '#1e293b'}
-                  strokeWidth={isSelected ? 2 : isHovered ? 1.5 : 0.8}
+                  fill={fillColor}
+                  stroke={strokeColor}
+                  strokeWidth={isSelected ? 2.2 : isHovered ? 1.6 : 1.0}
                   style={{
                     transition: 'fill 0.2s, stroke 0.2s, stroke-width 0.2s'
                   }}
