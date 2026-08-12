@@ -14,7 +14,12 @@ import {
   Database,
   RefreshCw,
   Shield,
-  CheckCheck 
+  CheckCheck,
+  Zap,
+  Webhook,
+  Copy,
+  Check,
+  UserCheck
 } from 'lucide-react';
 
 interface OutreachCenterProps {
@@ -86,9 +91,120 @@ Best regards,
 
   const [isSendingBatch, setIsSendingBatch] = useState(false);
   const [batchLog, setBatchLog] = useState<string[]>([]);
-  const [activeRightTab, setActiveRightTab] = useState<'dispatcher' | 'history'>('dispatcher');
+  const [activeRightTab, setActiveRightTab] = useState<'dispatcher' | 'history' | 'webhooks'>('dispatcher');
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshingLogs, setIsRefreshingLogs] = useState(false);
+
+  // Webhook Automation Testing State
+  const projectLeads = leads.filter(l => activeProject === 'General' || l.projectTag === activeProject);
+  const [simulatingLeadId, setSimulatingLeadId] = useState<string>(projectLeads[0]?.id || '');
+  const [simulatedReplyText, setSimulatedReplyText] = useState('Assalam o Alaikum! Yes, please share registration details for our agency.');
+  const [isSimulatingInbound, setIsSimulatingInbound] = useState(false);
+  const [isSimulatingSignup, setIsSimulatingSignup] = useState(false);
+  const [syncResultMsg, setSyncResultMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [copiedWebhook, setCopiedWebhook] = useState<string | null>(null);
+
+  const handleCopyWebhook = (url: string, id: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedWebhook(id);
+    setTimeout(() => setCopiedWebhook(null), 2500);
+  };
+
+  const handleSimulateInboundReply = async () => {
+    const target = projectLeads.find(l => l.id === simulatingLeadId) || projectLeads[0];
+    if (!target) {
+      alert('Please select a target lead to simulate an inbound WhatsApp response.');
+      return;
+    }
+
+    setIsSimulatingInbound(true);
+    setSyncResultMsg(null);
+
+    try {
+      const res = await fetch('/api/whatsapp-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: target.whatsapp || target.phone,
+          message: simulatedReplyText
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        // Update local state
+        setLeads(prev => prev.map(l => l.id === target.id ? {
+          ...l,
+          outreachStatus: 'Qualified',
+          lastContactedAt: new Date().toISOString(),
+          notes: `Inbound WhatsApp: "${simulatedReplyText}"\n${l.notes || ''}`.trim()
+        } : l));
+        onRefreshLogs();
+        setSyncResultMsg({
+          type: 'success',
+          text: `✅ Success! "${target.title}" was automatically promoted to "Qualified" via inbound webhook.`
+        });
+      } else {
+        setSyncResultMsg({
+          type: 'error',
+          text: `❌ Webhook Error: ${data.error || 'Failed to trigger webhook'}`
+        });
+      }
+    } catch (err: any) {
+      setSyncResultMsg({ type: 'error', text: `❌ Network Error: ${err.message}` });
+    } finally {
+      setIsSimulatingInbound(false);
+    }
+  };
+
+  const handleSimulateVendorSignup = async () => {
+    const target = projectLeads.find(l => l.id === simulatingLeadId) || projectLeads[0];
+    if (!target) {
+      alert('Please select a target lead to simulate vendor registration.');
+      return;
+    }
+
+    setIsSimulatingSignup(true);
+    setSyncResultMsg(null);
+
+    try {
+      const res = await fetch('/api/vendor-signup-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: target.whatsapp || target.phone,
+          email: target.email,
+          businessName: target.title,
+          city: target.city,
+          projectTag: activeProject
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        // Update local state
+        setLeads(prev => prev.map(l => l.id === target.id ? {
+          ...l,
+          outreachStatus: 'Converted',
+          lastContactedAt: new Date().toISOString(),
+          notes: `🎉 Converted: Registered as official GlobeTrek Vendor\n${l.notes || ''}`.trim()
+        } : l));
+        setSyncResultMsg({
+          type: 'success',
+          text: `🎉 Success! "${target.title}" was automatically promoted to "Converted" as an official GlobeTrek Vendor Partner!`
+        });
+      } else {
+        setSyncResultMsg({
+          type: 'error',
+          text: `❌ Sync Error: ${data.error || 'Failed to trigger registration sync'}`
+        });
+      }
+    } catch (err: any) {
+      setSyncResultMsg({ type: 'error', text: `❌ Network Error: ${err.message}` });
+    } finally {
+      setIsSimulatingSignup(false);
+    }
+  };
 
   const logWhatsAppSend = async (leadId: string, phone: string, message: string, serverResponse: string) => {
     const sessionToken = localStorage.getItem('access_token') || '';
@@ -114,7 +230,6 @@ Best regards,
   };
 
   // AI Assistant and Single Send State
-  const projectLeads = leads.filter(l => activeProject === 'General' || l.projectTag === activeProject);
   const [selectedLeadId, setSelectedLeadId] = useState<string>(projectLeads[0]?.id || 'sample');
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -568,7 +683,7 @@ Best regards,
           
           {/* Sub-tabs header */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <button
                 onClick={() => setActiveRightTab('dispatcher')}
                 className={`text-sm font-bold pb-2 transition-all border-b-2 ${
@@ -592,6 +707,17 @@ Best regards,
                   {whatsappLogs.filter(l => activeProject === 'General' || l.projectTag === activeProject).length}
                 </span>
               </button>
+              <button
+                onClick={() => setActiveRightTab('webhooks')}
+                className={`text-sm font-bold pb-2 transition-all border-b-2 flex items-center gap-1.5 ${
+                  activeRightTab === 'webhooks'
+                    ? 'text-purple-400 border-purple-400'
+                    : 'text-slate-400 border-transparent hover:text-slate-200'
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5 text-purple-400" />
+                Auto-Qualify & Webhook Sync
+              </button>
             </div>
             
             {activeRightTab === 'history' && (
@@ -610,7 +736,7 @@ Best regards,
             )}
           </div>
 
-          {activeRightTab === 'dispatcher' ? (
+          {activeRightTab === 'dispatcher' && (
             <div className="space-y-4">
               <div>
                 <h3 className="font-bold text-white text-sm">Campaign Message Template ({activeProject})</h3>
@@ -645,46 +771,59 @@ Best regards,
                   </>
                 ) : (
                   <>
-                    <Send className="w-5 h-5" /> Launch WhatsApp Campaign via {serverUrl ? serverUrl.replace(/^https?:\/\//, '') : 'wa.yello.bid'}
+                    <Send className="w-5 h-5" /> Dispatch Batch WhatsApp Outreach ({leads.filter(l => (activeProject === 'General' || l.projectTag === activeProject) && l.outreachStatus === 'New').length} New Leads)
                   </>
                 )}
               </button>
 
-              {/* Log Output */}
+              {/* Live Batch Execution Logs */}
               {batchLog.length > 0 && (
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 max-h-48 overflow-y-auto font-mono text-[11px] text-slate-300 space-y-1">
-                  {batchLog.map((log, i) => (
-                    <div key={i}>{log}</div>
-                  ))}
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                    <span className="flex items-center gap-1.5">
+                      <MessageSquare className="w-4 h-4 text-emerald-400" /> Campaign Execution Progress
+                    </span>
+                    <span className="text-emerald-400 font-mono text-[11px]">{batchLog.length} events</span>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto font-mono text-xs text-slate-300 space-y-1 bg-slate-900 p-3 rounded-lg border border-slate-800">
+                    {batchLog.map((log, index) => (
+                      <div key={index} className="leading-relaxed">{log}</div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
-          ) : (
+          )}
+
+          {activeRightTab === 'history' && (
             <div className="space-y-4">
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search logs by phone, business name or content..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium"
-                />
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search logs by name, phone or message..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div className="text-xs text-slate-400">
+                  Showing <strong>{whatsappLogs.filter(l => activeProject === 'General' || l.projectTag === activeProject).length}</strong> logs for {activeProject}
+                </div>
               </div>
 
-              {/* Logs Table */}
-              <div className="overflow-x-auto border border-slate-800 rounded-xl">
+              <div className="overflow-x-auto border border-slate-800 rounded-xl max-h-96 overflow-y-auto">
                 <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-slate-950 text-slate-400 uppercase font-semibold text-[10px] border-b border-slate-800">
+                  <thead className="bg-slate-950 text-slate-400 uppercase font-semibold text-[10px] border-b border-slate-800 sticky top-0">
                     <tr>
-                      <th className="py-2.5 px-3">Recipient</th>
-                      <th className="py-2.5 px-3">Message Content</th>
-                      <th className="py-2.5 px-3">Sent At</th>
+                      <th className="py-2.5 px-3">Lead / Business</th>
+                      <th className="py-2.5 px-3">Outreach Message</th>
+                      <th className="py-2.5 px-3">Timestamp</th>
                       <th className="py-2.5 px-3 text-right">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/50">
+                  <tbody className="divide-y divide-slate-800/60">
                     {whatsappLogs
                       .filter(l => activeProject === 'General' || l.projectTag === activeProject)
                       .filter(l => {
@@ -740,6 +879,162 @@ Best regards,
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeRightTab === 'webhooks' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-bold text-white text-base flex items-center gap-2">
+                  <Webhook className="w-4 h-4 text-purple-400" /> Automated Lead Qualification & Sync Webhooks
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Configure your WhatsApp Server or GlobeTrek Portal to automatically promote leads to <strong>Qualified</strong> or <strong>Converted</strong>.
+                </p>
+              </div>
+
+              {/* Webhook URLs Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                {/* Inbound WhatsApp Webhook Card */}
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-emerald-400 flex items-center gap-1.5">
+                      <MessageSquare className="w-3.5 h-3.5" /> 1. Inbound WhatsApp Reply Webhook
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                      Auto ➔ Qualified
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-normal">
+                    When a vendor replies on WhatsApp, this webhook automatically promotes them to <strong>Qualified (Hot Prospect)</strong> and stores their response text.
+                  </p>
+                  <div className="flex items-center gap-2 bg-slate-900 p-2 rounded-lg border border-slate-800">
+                    <code className="text-teal-300 font-mono text-[10px] truncate flex-1">
+                      https://leads-globetrek.pages.dev/api/whatsapp-webhook
+                    </code>
+                    <button
+                      onClick={() => handleCopyWebhook('https://leads-globetrek.pages.dev/api/whatsapp-webhook', 'wa')}
+                      className="p-1 text-slate-400 hover:text-white"
+                      title="Copy URL"
+                    >
+                      {copiedWebhook === 'wa' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* GlobeTrek Vendor Signup Sync Card */}
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-purple-400 flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5" /> 2. GlobeTrek Vendor Signup Webhook
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-950 text-purple-300 border border-purple-800">
+                      Auto ➔ Converted
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-normal">
+                    When an operator registers at <code className="text-purple-300">globetrek.pk/auth?role=vendor</code>, this webhook marks them as <strong>Converted Partner</strong>.
+                  </p>
+                  <div className="flex items-center gap-2 bg-slate-900 p-2 rounded-lg border border-slate-800">
+                    <code className="text-purple-300 font-mono text-[10px] truncate flex-1">
+                      https://leads-globetrek.pages.dev/api/vendor-signup-sync
+                    </code>
+                    <button
+                      onClick={() => handleCopyWebhook('https://leads-globetrek.pages.dev/api/vendor-signup-sync', 'gt')}
+                      className="p-1 text-slate-400 hover:text-white"
+                      title="Copy URL"
+                    >
+                      {copiedWebhook === 'gt' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Webhook Simulation Testing Console */}
+              <div className="bg-slate-950 p-5 rounded-xl border border-purple-500/30 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-amber-400" />
+                    <h4 className="font-bold text-white text-sm">Live Automation Simulation Console</h4>
+                  </div>
+                  <span className="text-[10px] font-semibold text-slate-400">
+                    Test automated status updates with 1 click
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="block text-slate-400 font-medium mb-1">Pick a Lead to Test</label>
+                    <select
+                      value={simulatingLeadId}
+                      onChange={(e) => setSimulatingLeadId(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-medium focus:outline-none focus:border-purple-500 text-xs"
+                    >
+                      {projectLeads.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.title} ({l.city} • {l.outreachStatus})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-400 font-medium mb-1">Simulated Vendor Reply Message</label>
+                    <input
+                      type="text"
+                      value={simulatedReplyText}
+                      onChange={(e) => setSimulatedReplyText(e.target.value)}
+                      placeholder="e.g. Yes, please share registration steps..."
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-purple-500 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <button
+                    onClick={handleSimulateInboundReply}
+                    disabled={isSimulatingInbound || projectLeads.length === 0}
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-slate-950 font-extrabold text-xs shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isSimulatingInbound ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing Reply...
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="w-3.5 h-3.5" /> ⚡ Simulate Inbound Reply ➔ Auto-Qualify
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleSimulateVendorSignup}
+                    disabled={isSimulatingSignup || projectLeads.length === 0}
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-md shadow-purple-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isSimulatingSignup ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing Signup...
+                      </>
+                    ) : (
+                      <>
+                        <UserCheck className="w-3.5 h-3.5" /> 🎉 Simulate Portal Signup ➔ Auto-Convert
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {syncResultMsg && (
+                  <div className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+                    syncResultMsg.type === 'success'
+                      ? 'bg-emerald-950/80 border-emerald-800 text-emerald-300'
+                      : 'bg-red-950/80 border-red-800 text-red-300'
+                  }`}>
+                    {syncResultMsg.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" /> : <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />}
+                    <span>{syncResultMsg.text}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
