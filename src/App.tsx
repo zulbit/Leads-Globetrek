@@ -451,7 +451,7 @@ export function App() {
         followUpDate: followUpDateStr,
         followUpNotes: 'Auto 3-day follow-up after WhatsApp pitch'
       } : l));
-      alert(`✅ WhatsApp Message Dispatched & Delivered to ${activeWhatsAppLead.title} (${result.phone})!\n\nDelivery Receipt ID: ${result.messageId || '#WA-CONFIRMED'}\nServer: wa.transmaxsolutons.com`);
+      alert(`✅ WhatsApp Message Dispatched & Delivered to ${activeWhatsAppLead.title} (${result.phone})!\n\nDelivery Receipt ID: ${result.messageId || '#WA-CONFIRMED'}\nServer: ${whatsAppConfig.serverUrl || 'WhatsApp Server'}`);
       setActiveWhatsAppLead(null);
     } else {
       alert(`Error sending WhatsApp message: ${result.error}`);

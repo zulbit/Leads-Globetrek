@@ -161,7 +161,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
           <h2 className="text-2xl font-bold text-white mt-1">Lead Generation & Outreach Command Center</h2>
           <p className="text-slate-400 text-sm mt-0.5">
-            Automated Google Business, Maps, LinkedIn & Apify Cloud Scraper pipeline integrated with <code className="text-teal-400">wa.transmaxsolutons.com</code>.
+            Automated Google Business, Maps, LinkedIn & Apify Cloud Scraper pipeline with verified WhatsApp & Email outreach.
           </p>
         </div>
 
@@ -219,7 +219,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
           <div className="mt-3">
             <span className="text-3xl font-extrabold text-white">{whatsAppCount}</span>
-            <span className="text-xs text-slate-400 ml-2">via wa.transmax</span>
+            <span className="text-xs text-slate-400 ml-2">Delivered Outbox</span>
           </div>
           <div className="mt-2 text-[11px] text-slate-400">
             Delivery Rate: <strong className="text-emerald-400">{whatsAppCount > 0 ? `${successRate}%` : '0%'}</strong> ({deliveredCount} / {whatsAppCount} ok)

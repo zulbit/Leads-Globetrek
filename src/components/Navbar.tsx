@@ -37,7 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'linkedin', label: 'LinkedIn Profiles', icon: Linkedin },
     { id: 'directories', label: 'Pak Business Directories', icon: Building2 },
     { id: 'leads', label: 'Lead Hub & CSV', icon: Users },
-    { id: 'outreach', label: 'WhatsApp Server Outreach', icon: MessageSquare, badge: 'wa.transmax' },
+    { id: 'outreach', label: 'WhatsApp Server Outreach', icon: MessageSquare, badge: 'Outreach' },
     { id: 'tasks', label: 'Tasks & Automation', icon: CheckSquare },
   ];
 

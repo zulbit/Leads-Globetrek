@@ -59,7 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       group: 'Management & Outreach',
       items: [
         { id: 'leads', label: 'Lead Hub & CSV Export', icon: Users },
-        { id: 'outreach', label: 'WhatsApp Server Outreach', icon: MessageSquare, badge: 'wa.transmax' },
+        { id: 'outreach', label: 'WhatsApp Server Outreach', icon: MessageSquare, badge: 'Outreach' },
         { id: 'outreach-logs', label: 'Outreach History Logs', icon: Database, badge: 'Live Logs' },
         { id: 'tasks', label: 'Tasks & Automation', icon: CheckSquare }
       ]
@@ -185,9 +185,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="flex items-center justify-between px-2 pt-1 text-[11px] text-slate-400">
           <span className="flex items-center gap-1.5">
-            <Server className="w-3 h-3 text-emerald-400" /> Server:
+            <Server className="w-3 h-3 text-emerald-400" /> Gateway:
           </span>
-          <span className="text-emerald-400 font-mono text-[10px]">wa.transmax</span>
+          <span className="text-emerald-400 font-mono text-[10px]">Active</span>
         </div>
       </div>
     </aside>
