@@ -179,7 +179,15 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
   };
 
   const handleStatusChange = (leadId: string, newStatus: OutreachStatus) => {
-    setLeads(leads.map(l => l.id === leadId ? { ...l, outreachStatus: newStatus } : l));
+    setLeads(leads.map(l => {
+      if (l.id === leadId) {
+        if (newStatus === 'New') {
+          return { ...l, outreachStatus: newStatus, notes: '', lastContactedAt: undefined };
+        }
+        return { ...l, outreachStatus: newStatus };
+      }
+      return l;
+    }));
   };
 
   const handleSaveFollowUp = () => {
@@ -517,16 +525,28 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
                           </div>
                         )}
                         {lead.notes && (
-                          <div className={`mt-1.5 p-2 rounded-lg text-[11px] font-medium border leading-relaxed ${
+                          <div className={`mt-1.5 p-2.5 rounded-xl text-[11px] font-medium border leading-relaxed ${
                             lead.notes.includes('Inbound WhatsApp:')
                               ? 'bg-purple-950/70 border-purple-700/80 text-purple-200 shadow-inner'
                               : lead.notes.includes('Converted:')
                               ? 'bg-emerald-950/70 border-emerald-700/80 text-emerald-200'
                               : 'bg-slate-950/80 border-slate-800 text-amber-300/90'
                           }`}>
-                            <span className="font-bold flex items-center gap-1 mb-0.5">
-                              {lead.notes.includes('Inbound WhatsApp:') ? '💬 Vendor WhatsApp Reply:' : lead.notes.includes('Converted:') ? '🎉 Partner Status:' : '📝 Internal Note:'}
-                            </span>
+                            <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-1 mb-1">
+                              <span className="font-bold flex items-center gap-1">
+                                {lead.notes.includes('Inbound WhatsApp:') ? '💬 Vendor WhatsApp Reply:' : lead.notes.includes('Converted:') ? '🎉 Partner Status:' : '📝 Internal Note:'}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setLeads(leads.map(l => l.id === lead.id ? { ...l, notes: '' } : l));
+                                }}
+                                className="px-1.5 py-0.5 rounded text-[10px] bg-slate-900 hover:bg-red-950 hover:text-red-300 border border-slate-700 text-slate-400 font-semibold transition-all"
+                                title="Clear note / reply"
+                              >
+                                ✕ Clear Note
+                              </button>
+                            </div>
                             <div className="whitespace-pre-wrap font-sans text-slate-200">
                               {lead.notes.replace('Inbound WhatsApp:', '').replace('🎉 Converted:', '').trim()}
                             </div>
