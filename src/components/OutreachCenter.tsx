@@ -19,7 +19,11 @@ import {
   Webhook,
   Copy,
   Check,
-  UserCheck
+  UserCheck,
+  Save,
+  BookOpen,
+  SlidersHorizontal,
+  RotateCcw
 } from 'lucide-react';
 
 interface OutreachCenterProps {
@@ -85,9 +89,79 @@ https://globetrek.pk/vendor-guide
 Best regards,
 *GlobeTrek Operations Team* 🌴`;
 
-  const [messageTemplate, setMessageTemplate] = useState(
-    activeProject === 'Dreamstay' ? defaultDreamstayMsg : defaultGlobetrekMsg
-  );
+  const PRESET_GLOBETREK_ONBOARDING = defaultGlobetrekMsg;
+  const PRESET_GLOBETREK_ROMAN_URDU = `*GlobeTrek PK — Vendor Partner Invitation* 🚀
+
+Assalam o Alaikum *{{business_name}}* team! 👋
+
+Kya aap *{{city}}* mein apne tour packages, visas, aur travel services ki bookings ko 2X karna chahte hain?
+
+*GlobeTrek PK* par daily hazaron travelers active domestic & international packages, visa inquiries, aur family group trips search kar rahe hain! ✈️
+
+Hum *{{city}}* ke top verified travel operators ko invite kar rahe hain taake aap direct customer leads hasil kar sakein — *Zero Commission & Direct Client Access!* 🔥
+
+Sirf 2 minutes mein apni agency register karein:
+
+🌐 *Official Portal:*
+https://globetrek.pk/
+
+✍️ *Free Vendor Registration:*
+https://globetrek.pk/auth?mode=signup&role=vendor
+
+📖 *Vendor Onboarding Steps:*
+https://globetrek.pk/vendor-guide
+
+Aap is message ka direct reply karke bhi humari team se baat kar sakte hain. Let's get your business listed! ✨
+
+Regards,
+*GlobeTrek Partnerships Team* 🌴`;
+
+  const PRESET_FOLLOWUP = `*GlobeTrek PK — Partnership Follow-Up* ⏰
+
+Assalam o Alaikum *{{business_name}}* team!
+
+We wanted to quickly follow up regarding your vendor listing on *GlobeTrek Pakistan* for travelers in *{{city}}*.
+
+Have you had a chance to check the onboarding link?
+👉 https://globetrek.pk/auth?mode=signup&role=vendor
+
+If you need any assistance setting up your tours and packages, reply directly to this message and our operations team will assist you immediately!
+
+Best regards,
+*GlobeTrek PK Support*`;
+
+  const [messageTemplate, setMessageTemplate] = useState(() => {
+    const saved = localStorage.getItem(`custom_wa_template_${activeProject}`);
+    if (saved) return saved;
+    return activeProject === 'Dreamstay' ? defaultDreamstayMsg : PRESET_GLOBETREK_ROMAN_URDU;
+  });
+
+  const [customAiInstructions, setCustomAiInstructions] = useState(() => {
+    return localStorage.getItem(`deepseek_custom_instructions_${activeProject}`) || '';
+  });
+
+  const [isTemplateSaved, setIsTemplateSaved] = useState(false);
+  const [isAiPromptSaved, setIsAiPromptSaved] = useState(false);
+
+  const handleSaveActiveTemplate = () => {
+    localStorage.setItem(`custom_wa_template_${activeProject}`, messageTemplate);
+    if (whatsAppConfig) {
+      const updated = {
+        ...whatsAppConfig,
+        templates: [{ id: 'active', name: `${activeProject} Active Pitch`, content: messageTemplate, projectTag: activeProject }]
+      };
+      setWhatsAppConfig(updated);
+      localStorage.setItem('whatsapp_config', JSON.stringify(updated));
+    }
+    setIsTemplateSaved(true);
+    setTimeout(() => setIsTemplateSaved(false), 2500);
+  };
+
+  const handleSaveCustomAiPrompt = () => {
+    localStorage.setItem(`deepseek_custom_instructions_${activeProject}`, customAiInstructions);
+    setIsAiPromptSaved(true);
+    setTimeout(() => setIsAiPromptSaved(false), 2500);
+  };
 
   const [isSendingBatch, setIsSendingBatch] = useState(false);
   const [batchLog, setBatchLog] = useState<string[]>([]);
@@ -419,7 +493,8 @@ Best regards,
           leadWebsiteStatus: targetLead.websiteStatus,
           leadRating: targetLead.rating,
           leadReviewsCount: targetLead.reviewsCount,
-          projectTag: activeProject
+          projectTag: activeProject,
+          customInstructions: customAiInstructions
         })
       });
 
@@ -430,6 +505,7 @@ Best regards,
 
       if (data.pitch) {
         setMessageTemplate(data.pitch);
+        localStorage.setItem(`custom_wa_template_${activeProject}`, data.pitch);
       }
     } catch (err: any) {
       console.error(err);
@@ -645,6 +721,35 @@ Best regards,
                 </select>
               </div>
 
+              {/* Custom AI Prompt & Instructions Editor */}
+              <div className="space-y-1.5 bg-slate-950/80 p-3 rounded-xl border border-purple-900/50">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-purple-400" /> Custom AI Prompt / Rules:
+                  </label>
+                  {isAiPromptSaved && (
+                    <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 animate-pulse">
+                      <Check className="w-3 h-3" /> Prompt Saved!
+                    </span>
+                  )}
+                </div>
+                <textarea
+                  rows={2}
+                  value={customAiInstructions}
+                  onChange={(e) => setCustomAiInstructions(e.target.value)}
+                  placeholder="e.g. Focus on 0% commission, mention onboarding portal link, keep under 70 words in Roman Urdu..."
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-[11px] text-purple-200 placeholder:text-slate-600 focus:outline-none focus:border-purple-500 font-mono leading-relaxed"
+                />
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleSaveCustomAiPrompt}
+                    className="px-2.5 py-1 rounded-lg bg-purple-950 hover:bg-purple-900 text-purple-300 border border-purple-800 text-[10px] font-bold flex items-center gap-1 transition-all"
+                  >
+                    <Save className="w-3 h-3" /> Save AI Prompt Rules
+                  </button>
+                </div>
+              </div>
+
               <button
                 onClick={handleGenerateAIPitch}
                 disabled={isGenerating}
@@ -750,15 +855,82 @@ Best regards,
 
           {activeRightTab === 'dispatcher' && (
             <div className="space-y-4">
-              <div>
-                <h3 className="font-bold text-white text-sm">Campaign Message Template ({activeProject})</h3>
-                <p className="text-[11px] text-slate-400">Use placeholders: <code className="text-emerald-400">{"{{business_name}}"}</code>, <code className="text-emerald-400">{"{{city}}"}</code>, <code className="text-emerald-400">{"{{project}}"}</code></p>
+              {/* Header with Save Template & Reset Controls */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                <div>
+                  <h3 className="font-bold text-white text-sm">Campaign Message Template ({activeProject})</h3>
+                  <p className="text-[11px] text-slate-400">Use placeholders: <code className="text-emerald-400">{"{{business_name}}"}</code>, <code className="text-emerald-400">{"{{city}}"}</code>, <code className="text-emerald-400">{"{{project}}"}</code></p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isTemplateSaved && (
+                    <span className="text-xs text-emerald-400 font-bold flex items-center gap-1 bg-emerald-950 px-2.5 py-1 rounded-lg border border-emerald-800 animate-pulse">
+                      <Check className="w-3.5 h-3.5" /> Template Saved!
+                    </span>
+                  )}
+                  
+                  <button
+                    onClick={() => {
+                      const defaultMsg = activeProject === 'Dreamstay' ? defaultDreamstayMsg : PRESET_GLOBETREK_ROMAN_URDU;
+                      setMessageTemplate(defaultMsg);
+                      localStorage.setItem(`custom_wa_template_${activeProject}`, defaultMsg);
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1 transition-all"
+                    title="Reset to default template"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> Reset
+                  </button>
+
+                  <button
+                    onClick={handleSaveActiveTemplate}
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 flex items-center gap-1.5 transition-all"
+                  >
+                    <Save className="w-3.5 h-3.5" /> Save Template
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Load Presets Bar */}
+              <div className="flex items-center gap-2 flex-wrap text-xs bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <span className="text-slate-400 font-semibold text-[11px] flex items-center gap-1">
+                  <BookOpen className="w-3.5 h-3.5 text-teal-400" /> Presets:
+                </span>
+                <button
+                  onClick={() => {
+                    setMessageTemplate(PRESET_GLOBETREK_ROMAN_URDU);
+                    localStorage.setItem(`custom_wa_template_${activeProject}`, PRESET_GLOBETREK_ROMAN_URDU);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-teal-300 border border-slate-800 text-[11px] font-medium transition-all"
+                >
+                  🇵🇰 Roman Urdu Partner Invitation
+                </button>
+                <button
+                  onClick={() => {
+                    setMessageTemplate(PRESET_GLOBETREK_ONBOARDING);
+                    localStorage.setItem(`custom_wa_template_${activeProject}`, PRESET_GLOBETREK_ONBOARDING);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-medium transition-all"
+                >
+                  🌐 Official Onboarding (English)
+                </button>
+                <button
+                  onClick={() => {
+                    setMessageTemplate(PRESET_FOLLOWUP);
+                    localStorage.setItem(`custom_wa_template_${activeProject}`, PRESET_FOLLOWUP);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 text-[11px] font-medium transition-all"
+                >
+                  ⏰ 3-Day Follow-Up
+                </button>
               </div>
 
               <textarea
                 rows={8}
                 value={messageTemplate}
-                onChange={(e) => setMessageTemplate(e.target.value)}
+                onChange={(e) => {
+                  setMessageTemplate(e.target.value);
+                  localStorage.setItem(`custom_wa_template_${activeProject}`, e.target.value);
+                }}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono leading-relaxed"
               />
 

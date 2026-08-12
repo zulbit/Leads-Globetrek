@@ -45,7 +45,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       leadWebsiteStatus, 
       leadRating, 
       leadReviewsCount,
-      projectTag 
+      projectTag,
+      customInstructions
     } = await request.json() as any;
 
     if (!leadTitle || !leadCity) {
@@ -79,7 +80,7 @@ Keep the tone very polite, starting with a warm Pakistani greeting like "AOA" an
 Use line breaks to make it highly readable on phone viewports. Under 90 words.`;
 
     // Construct the user instruction highlighting exact pain points (rating, broken website, etc.)
-    const userPrompt = `Write a personalized WhatsApp outreach message for this business:
+    let userPrompt = `Write a personalized WhatsApp outreach message for this business:
 - Business Name: "${leadTitle}"
 - Category/Niche: "${leadCategory || 'Tourism & Hospitality'}"
 - City: "${leadCity}"
@@ -87,7 +88,7 @@ Use line breaks to make it highly readable on phone viewports. Under 90 words.`;
 - Website Status: "${sanitizedStatus}"
 - Rating: ${leadRating !== undefined ? `${leadRating} ★ (${leadReviewsCount || 0} reviews)` : 'Not rated yet'}
 
-CRITICAL PERSONALIZATION INSTRUCTIONS (THE AI MAGIC):
+CRITICAL PERSONALIZATION INSTRUCTIONS:
 1. **Salutation**: Start with "AOA [Business Name] team!" or "AOA [Business Name]! Umeed hai aap khairiyat se honge."
 2. **Specific Website Hook**:
    - If they have a working website (e.g. status contains "Reachable", website is not empty): Mention that you visited "${sanitizedWebsite}" and compliment their digital presence, but explain how listing on ${isDreamstay ? 'Dreamstay' : 'Globetrek'} will expand their direct guest reach in ${leadCity}.
@@ -96,6 +97,10 @@ CRITICAL PERSONALIZATION INSTRUCTIONS (THE AI MAGIC):
 3. **Rating Validation**: If they have a high rating (4.0+), compliment it: "Aapki Google profile par ${leadRating} star rating aur reviews dekh kar bohat khushi hui!"
 4. **Call to Action**: End with a friendly question: "Kya main aapse iska 30-second mockup share kar sakta hoon?" or "Can we connect for a brief chat?"
 5. **Format**: Deliver only the final Roman Urdu WhatsApp message. No subject lines, no intro text, no placeholders, no hashtags, no quotes. Use emojis naturally.`;
+
+    if (customInstructions && typeof customInstructions === 'string' && customInstructions.trim()) {
+      userPrompt += `\n\nUSER CUSTOM PROMPT OVERRIDES / SPECIAL INSTRUCTIONS:\n${customInstructions.trim()}`;
+    }
 
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
