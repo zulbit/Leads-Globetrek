@@ -42,6 +42,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [hoveredRegion, setHoveredRegion] = React.useState<string | null>(null);
   const [selectedRegion, setSelectedRegion] = React.useState<string | null>(null);
+  const [selectedCity, setSelectedCity] = React.useState<string | null>(null);
+  const [breakdownView, setBreakdownView] = React.useState<'cities' | 'provinces'>('cities');
 
   const getProvinceFromCity = (city: string): string => {
     const c = (city || '').toLowerCase();
@@ -50,13 +52,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
       c.includes('lahore') || c.includes('multan') || c.includes('faisalabad') || 
       c.includes('rawalpindi') || c.includes('sialkot') || c.includes('gujranwala') || 
       c.includes('gujrat') || c.includes('murree') || c.includes('punjab') || 
-      c.includes('sheikhupura')
+      c.includes('sheikhupura') || c.includes('sargodha') || c.includes('sahiwal') ||
+      c.includes('bahawalpur') || c.includes('rahim yar khan') || c.includes('jhang')
     ) return 'Punjab';
     if (
       c.includes('peshawar') || c.includes('swat') || c.includes('kalam') || 
       c.includes('malam jabba') || c.includes('dir') || c.includes('chitral') || 
       c.includes('abbottabad') || c.includes('kpk') || c.includes('naran') || 
-      c.includes('kaghan') || c.includes('malakand') || c.includes('mardan')
+      c.includes('kaghan') || c.includes('malakand') || c.includes('mardan') ||
+      c.includes('nathia gali') || c.includes('shogran') || c.includes('ayubia')
     ) return 'Khyber Pakhtunkhwa';
     if (c.includes('quetta') || c.includes('gwadar') || c.includes('balochistan') || c.includes('chaman')) return 'Balochistan';
     if (c.includes('gilgit') || c.includes('skardu') || c.includes('hunza') || c.includes('baltistan') || c.includes('nagar') || c.includes('ghizer')) return 'Gilgit-Baltistan';
@@ -85,17 +89,46 @@ export const Dashboard: React.FC<DashboardProps> = ({
     'Islamabad': 0
   };
 
+  // Precise City Leads Aggregation (Searched vs Contacted)
+  const cityLeadMap: { [key: string]: { total: number; contacted: number; newLeads: number; province: string } } = {};
+
   filteredLeads.forEach(l => {
-    const prov = getProvinceFromCity(l.city);
+    const rawCity = (l.city || 'Other').trim();
+    const city = rawCity.charAt(0).toUpperCase() + rawCity.slice(1);
+    const prov = getProvinceFromCity(city);
+    
     if (provinceCounts[prov] !== undefined) {
       provinceCounts[prov]++;
     }
+
+    if (!cityLeadMap[city]) {
+      cityLeadMap[city] = { total: 0, contacted: 0, newLeads: 0, province: prov };
+    }
+    cityLeadMap[city].total++;
+    const isContacted = (l.outreachStatus && l.outreachStatus !== 'New') || !!l.lastContactedAt;
+    if (isContacted) {
+      cityLeadMap[city].contacted++;
+    } else {
+      cityLeadMap[city].newLeads++;
+    }
   });
+
+  const cityStats = Object.keys(cityLeadMap)
+    .map(city => ({
+      city,
+      province: cityLeadMap[city].province,
+      total: cityLeadMap[city].total,
+      contacted: cityLeadMap[city].contacted,
+      newLeads: cityLeadMap[city].newLeads
+    }))
+    .sort((a, b) => b.total - a.total);
 
   const maxProvinceCount = Math.max(...Object.values(provinceCounts), 1);
   const totalProvinceLeads = Object.values(provinceCounts).reduce((a, b) => a + b, 0);
 
-  const displayLeads = selectedRegion 
+  const displayLeads = selectedCity
+    ? filteredLeads.filter(l => l.city.toLowerCase() === selectedCity.toLowerCase())
+    : selectedRegion 
     ? filteredLeads.filter(l => getProvinceFromCity(l.city) === selectedRegion)
     : filteredLeads;
 
@@ -189,7 +222,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <span className="text-xs text-slate-400 ml-2">via wa.transmax</span>
           </div>
           <div className="mt-2 text-[11px] text-slate-400">
-            Delivery Rate: <strong className="text-emerald-400">{whatsAppCount > 0 ? `${successRate}%` : '100%'}</strong> ({deliveredCount} / {whatsAppCount} ok)
+            Delivery Rate: <strong className="text-emerald-400">{whatsAppCount > 0 ? `${successRate}%` : '0%'}</strong> ({deliveredCount} / {whatsAppCount} ok)
           </div>
         </div>
 
@@ -217,12 +250,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-3xl font-extrabold text-white">{Object.keys(provinceCounts).filter(p => provinceCounts[p] > 0).length}</span>
-            <span className="text-xs text-slate-400 ml-2">Regions Covered</span>
+            <span className="text-3xl font-extrabold text-white">{cityStats.length}</span>
+            <span className="text-xs text-slate-400 ml-2">Cities Scraped</span>
           </div>
           <div className="mt-2 text-[11px] text-slate-400">
-            Top Region: <strong className="text-blue-400">
-              {Object.keys(provinceCounts).reduce((a, b) => provinceCounts[a] > provinceCounts[b] ? a : b, 'Sindh')}
+            Top City: <strong className="text-blue-400">
+              {cityStats.length > 0 ? `${cityStats[0].city} (${cityStats[0].total})` : 'None'}
             </strong>
           </div>
         </div>
@@ -231,83 +264,191 @@ export const Dashboard: React.FC<DashboardProps> = ({
       {/* Analytics Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Interactive Pakistan Regional Lead Heatmap Widget */}
+        {/* Interactive Pakistan Precise City & Regional Heatmap Widget */}
         <div className="lg:col-span-2 bg-slate-900/80 p-6 rounded-2xl border border-slate-800/80 shadow-lg flex flex-col space-y-4 justify-between relative overflow-hidden">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div>
-              <h3 className="font-bold text-white text-base">Pakistan Regional Lead Heatmap</h3>
-              <p className="text-xs text-slate-400">Click a region to filter lead listings dynamically</p>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-white text-base">Pakistan City-Precision Heatmap</h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-950 text-teal-300 border border-teal-800">
+                  GPS & District Coordinates
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Exact pinpoints for searched leads (teal) and contacted outreach leads (emerald).
+              </p>
             </div>
-            <div className="flex items-center gap-2">
-              {selectedRegion && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {(selectedCity || selectedRegion) && (
                 <button
-                  onClick={() => setSelectedRegion(null)}
-                  className="px-2 py-0.5 rounded text-[10px] bg-slate-800 border border-slate-700 text-teal-400 hover:text-teal-300 font-semibold"
+                  onClick={() => { setSelectedCity(null); setSelectedRegion(null); }}
+                  className="px-2.5 py-1 rounded-lg text-xs bg-red-950/80 border border-red-800 text-red-300 hover:bg-red-900 font-semibold transition-all flex items-center gap-1"
                 >
-                  Clear Filter
+                  Clear Filter ({selectedCity || selectedRegion}) ✕
                 </button>
               )}
               <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-950 text-teal-400 border border-slate-700/60 font-mono">
-                {totalProvinceLeads} Leads
+                {totalProvinceLeads} Leads ({cityStats.length} Cities)
               </span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
             
-            {/* Geographically accurate SVG map of Pakistan */}
+            {/* Geographically accurate SVG map of Pakistan with precise city pins */}
             <div className="md:col-span-3 bg-slate-950/60 rounded-xl p-4 border border-slate-800">
               <PakistanMap
                 provinceCounts={provinceCounts}
+                cityStats={cityStats}
                 maxProvinceCount={maxProvinceCount}
                 totalProvinceLeads={totalProvinceLeads}
                 hoveredRegion={hoveredRegion}
                 selectedRegion={selectedRegion}
+                selectedCity={selectedCity}
                 onHover={setHoveredRegion}
-                onClick={(region) => setSelectedRegion(selectedRegion === region ? null : region)}
+                onClick={(region) => {
+                  setSelectedRegion(selectedRegion === region ? null : region);
+                  setSelectedCity(null);
+                }}
+                onCityClick={(city) => {
+                  setSelectedCity(selectedCity === city ? null : city);
+                  setSelectedRegion(null);
+                }}
               />
             </div>
 
-            {/* Density progress breakdown list on the right */}
+            {/* Precision Density & City Breakdown Sidebar */}
             <div className="md:col-span-2 space-y-3 text-xs">
-              <h4 className="font-semibold text-slate-300 text-[11px] uppercase tracking-wider pb-1 border-b border-slate-800">
-                Density Breakdown
-              </h4>
-              <div className="space-y-2.5">
-                {Object.keys(provinceCounts)
-                  .sort((a, b) => provinceCounts[b] - provinceCounts[a])
-                  .map((prov) => {
-                    const count = provinceCounts[prov];
-                    const percent = totalProvinceLeads > 0 ? Math.round((count / totalProvinceLeads) * 100) : 0;
-                    const isSelected = selectedRegion === prov;
-
-                    return (
-                      <div 
-                        key={prov} 
-                        onClick={() => setSelectedRegion(selectedRegion === prov ? null : prov)}
-                        className={`p-2 rounded-lg border cursor-pointer transition-all ${
-                          isSelected 
-                            ? 'bg-teal-950/40 border-teal-500/40 shadow' 
-                            : 'bg-slate-950/40 border-transparent hover:bg-slate-900'
-                        }`}
-                      >
-                        <div className="flex justify-between items-center text-[11px] mb-1">
-                          <span className="font-medium text-slate-300 flex items-center gap-1.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${count > 0 ? 'bg-teal-400' : 'bg-slate-700'}`} />
-                            {prov}
-                          </span>
-                          <span className="font-bold text-white font-mono">{count} <span className="text-[10px] text-slate-500 font-normal">({percent}%)</span></span>
-                        </div>
-                        <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
-                          <div 
-                            className="bg-gradient-to-r from-teal-500 to-teal-400 h-full rounded-full transition-all duration-500"
-                            style={{ width: `${percent}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+              <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+                <h4 className="font-semibold text-slate-300 text-[11px] uppercase tracking-wider">
+                  {breakdownView === 'cities' ? `Cities (${cityStats.length})` : 'Provinces'}
+                </h4>
+                <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                  <button
+                    onClick={() => setBreakdownView('cities')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                      breakdownView === 'cities'
+                        ? 'bg-teal-950 text-teal-300 border border-teal-800'
+                        : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    Cities
+                  </button>
+                  <button
+                    onClick={() => setBreakdownView('provinces')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                      breakdownView === 'provinces'
+                        ? 'bg-teal-950 text-teal-300 border border-teal-800'
+                        : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    Provinces
+                  </button>
+                </div>
               </div>
+
+              {/* City Breakdown View */}
+              {breakdownView === 'cities' ? (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {cityStats.length === 0 ? (
+                    <div className="py-6 text-center text-slate-500 text-xs">
+                      No city leads available.
+                    </div>
+                  ) : (
+                    cityStats.map((c) => {
+                      const percent = totalProvinceLeads > 0 ? Math.round((c.total / totalProvinceLeads) * 100) : 0;
+                      const isCitySelected = selectedCity?.toLowerCase() === c.city.toLowerCase();
+
+                      return (
+                        <div
+                          key={c.city}
+                          onClick={() => {
+                            setSelectedCity(isCitySelected ? null : c.city);
+                            setSelectedRegion(null);
+                          }}
+                          className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
+                            isCitySelected
+                              ? 'bg-teal-950/60 border-teal-500/60 shadow-lg shadow-teal-950'
+                              : 'bg-slate-950/60 border-slate-800/80 hover:border-teal-500/40 hover:bg-slate-900'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center text-[11px] mb-1">
+                            <span className="font-bold text-white flex items-center gap-1.5">
+                              <span className={`w-2 h-2 rounded-full ${c.contacted > 0 ? 'bg-emerald-400 ring-2 ring-emerald-400/30' : 'bg-teal-400'}`} />
+                              {c.city}
+                              <span className="text-[10px] text-slate-500 font-normal">({c.province})</span>
+                            </span>
+                            <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                              <span className="text-teal-300 font-bold">{c.total} leads</span>
+                              {c.contacted > 0 && (
+                                <span className="text-emerald-400 text-[10px] font-semibold bg-emerald-950 px-1.5 py-0.2 rounded border border-emerald-800">
+                                  {c.contacted} contacted
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Dual Progress Bar: Teal for total proportion, Emerald for contacted */}
+                          <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden flex">
+                            {c.contacted > 0 && (
+                              <div
+                                className="bg-emerald-400 h-full transition-all duration-500"
+                                style={{ width: `${(c.contacted / c.total) * 100}%` }}
+                                title={`${c.contacted} Contacted`}
+                              />
+                            )}
+                            <div
+                              className="bg-teal-500 h-full transition-all duration-500"
+                              style={{ width: `${((c.total - c.contacted) / c.total) * 100}%` }}
+                              title={`${c.newLeads} New / Pending`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              ) : (
+                /* Province Breakdown View */
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {Object.keys(provinceCounts)
+                    .sort((a, b) => provinceCounts[b] - provinceCounts[a])
+                    .map((prov) => {
+                      const count = provinceCounts[prov];
+                      const percent = totalProvinceLeads > 0 ? Math.round((count / totalProvinceLeads) * 100) : 0;
+                      const isSelected = selectedRegion === prov;
+
+                      return (
+                        <div 
+                          key={prov} 
+                          onClick={() => {
+                            setSelectedRegion(selectedRegion === prov ? null : prov);
+                            setSelectedCity(null);
+                          }}
+                          className={`p-2 rounded-lg border cursor-pointer transition-all ${
+                            isSelected 
+                              ? 'bg-teal-950/40 border-teal-500/40 shadow' 
+                              : 'bg-slate-950/40 border-transparent hover:bg-slate-900'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center text-[11px] mb-1">
+                            <span className="font-medium text-slate-300 flex items-center gap-1.5">
+                              <span className={`w-1.5 h-1.5 rounded-full ${count > 0 ? 'bg-teal-400' : 'bg-slate-700'}`} />
+                              {prov}
+                            </span>
+                            <span className="font-bold text-white font-mono">{count} <span className="text-[10px] text-slate-500 font-normal">({percent}%)</span></span>
+                          </div>
+                          <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                            <div 
+                              className="bg-gradient-to-r from-teal-500 to-teal-400 h-full rounded-full transition-all duration-500"
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
           </div>
         </div>

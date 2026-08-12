@@ -199,43 +199,128 @@ export const PAKISTAN_PROVINCES: ProvinceData[] = [
 
 export const PAKISTAN_VIEWBOX = "27 28 1628 1544";
 
+export interface CityLeadStat {
+  city: string;
+  province: string;
+  total: number;
+  contacted: number;
+  newLeads: number;
+  x?: number;
+  y?: number;
+}
+
+export const PAKISTAN_CITY_COORDINATES: { [key: string]: { x: number; y: number; province: string } } = {
+  'lahore': { x: 1375, y: 670, province: 'Punjab' },
+  'karachi': { x: 700, y: 1530, province: 'Sindh' },
+  'islamabad': { x: 1268, y: 420, province: 'Islamabad' },
+  'rawalpindi': { x: 1255, y: 445, province: 'Punjab' },
+  'abbottabad': { x: 1220, y: 275, province: 'Khyber Pakhtunkhwa' },
+  'peshawar': { x: 1090, y: 410, province: 'Khyber Pakhtunkhwa' },
+  'faisalabad': { x: 1265, y: 780, province: 'Punjab' },
+  'multan': { x: 1125, y: 850, province: 'Punjab' },
+  'gujranwala': { x: 1325, y: 575, province: 'Punjab' },
+  'sialkot': { x: 1360, y: 565, province: 'Punjab' },
+  'gujrat': { x: 1295, y: 585, province: 'Punjab' },
+  'quetta': { x: 715, y: 680, province: 'Balochistan' },
+  'gwadar': { x: 180, y: 1360, province: 'Balochistan' },
+  'gilgit': { x: 1350, y: 110, province: 'Gilgit-Baltistan' },
+  'hunza': { x: 1410, y: 150, province: 'Gilgit-Baltistan' },
+  'skardu': { x: 1470, y: 260, province: 'Gilgit-Baltistan' },
+  'swat': { x: 1150, y: 285, province: 'Khyber Pakhtunkhwa' },
+  'kalam': { x: 1155, y: 250, province: 'Khyber Pakhtunkhwa' },
+  'malam jabba': { x: 1170, y: 295, province: 'Khyber Pakhtunkhwa' },
+  'naran': { x: 1230, y: 290, province: 'Khyber Pakhtunkhwa' },
+  'kaghan': { x: 1235, y: 305, province: 'Khyber Pakhtunkhwa' },
+  'murree': { x: 1285, y: 325, province: 'Punjab' },
+  'nathia gali': { x: 1275, y: 310, province: 'Khyber Pakhtunkhwa' },
+  'chitral': { x: 1130, y: 100, province: 'Khyber Pakhtunkhwa' },
+  'sukkur': { x: 830, y: 1155, province: 'Sindh' },
+  'hyderabad': { x: 775, y: 1440, province: 'Sindh' },
+  'larkana': { x: 770, y: 1155, province: 'Sindh' },
+  'bahawalpur': { x: 1170, y: 885, province: 'Punjab' },
+  'rahim yar khan': { x: 1025, y: 945, province: 'Punjab' },
+  'sargodha': { x: 1220, y: 640, province: 'Punjab' },
+  'sahiwal': { x: 1275, y: 760, province: 'Punjab' },
+  'sheikhupura': { x: 1345, y: 660, province: 'Punjab' },
+  'shogran': { x: 1240, y: 315, province: 'Khyber Pakhtunkhwa' },
+  'ayubia': { x: 1280, y: 320, province: 'Khyber Pakhtunkhwa' },
+  'jhang': { x: 1215, y: 720, province: 'Punjab' },
+  'muzaffarabad': { x: 1285, y: 320, province: 'Azad Kashmir' },
+  'mirpur': { x: 1325, y: 475, province: 'Azad Kashmir' },
+  'dir': { x: 1120, y: 260, province: 'Khyber Pakhtunkhwa' },
+  'mardan': { x: 1105, y: 390, province: 'Khyber Pakhtunkhwa' }
+};
+
 interface PakistanMapProps {
   provinceCounts: { [key: string]: number };
+  cityStats?: CityLeadStat[];
   maxProvinceCount: number;
   totalProvinceLeads: number;
   hoveredRegion: string | null;
   selectedRegion: string | null;
+  selectedCity?: string | null;
   onHover: (region: string | null) => void;
   onClick: (region: string) => void;
+  onCityClick?: (city: string) => void;
 }
 
 export const PakistanMap: React.FC<PakistanMapProps> = ({
   provinceCounts,
-  maxProvinceCount,
+  cityStats = [],
   hoveredRegion,
   selectedRegion,
+  selectedCity,
   totalProvinceLeads,
   onHover,
-  onClick
+  onClick,
+  onCityClick
 }) => {
+  const [hoveredCity, setHoveredCity] = React.useState<CityLeadStat | null>(null);
+
+  // Match cityStats with coordinates
+  const mappedCities: CityLeadStat[] = cityStats.map(c => {
+    const norm = c.city.toLowerCase().trim();
+    const coord = PAKISTAN_CITY_COORDINATES[norm];
+    if (coord) {
+      return { ...c, x: coord.x, y: coord.y, province: coord.province };
+    }
+    // Fallback based on province
+    if (c.province === 'Punjab') return { ...c, x: 1270, y: 700 };
+    if (c.province === 'Sindh') return { ...c, x: 780, y: 1400 };
+    if (c.province === 'Khyber Pakhtunkhwa') return { ...c, x: 1150, y: 320 };
+    if (c.province === 'Gilgit-Baltistan') return { ...c, x: 1400, y: 180 };
+    if (c.province === 'Balochistan') return { ...c, x: 600, y: 900 };
+    if (c.province === 'Azad Kashmir') return { ...c, x: 1300, y: 380 };
+    if (c.province === 'Islamabad') return { ...c, x: 1268, y: 420 };
+    return { ...c, x: 1200, y: 600 };
+  });
+
+  const maxCityLeads = Math.max(...mappedCities.map(c => c.total), 1);
+
   return (
     <div className="relative w-full">
       <svg
         viewBox={PAKISTAN_VIEWBOX}
         className="w-full h-auto select-none"
-        style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
+        style={{ filter: 'drop-shadow(0 4px 14px rgba(0,0,0,0.6))' }}
       >
+        <defs>
+          <radialGradient id="cityGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.8" />
+            <stop offset="50%" stopColor="#14b8a6" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#14b8a6" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="contactedGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#10b981" stopOpacity="0.9" />
+            <stop offset="60%" stopColor="#10b981" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        {/* Base Pakistan Map Outline - Clean & Precise */}
         {PAKISTAN_PROVINCES.map((province) => {
-          const count = provinceCounts[province.name] || 0;
-          const ratio = count / maxProvinceCount;
           const isHovered = hoveredRegion === province.name;
           const isSelected = selectedRegion === province.name;
-
-          let fillColor = 'rgb(30, 41, 59)';
-          if (count > 0) {
-            const opacityVal = 0.15 + ratio * 0.75;
-            fillColor = `rgba(20, 184, 166, ${opacityVal})`;
-          }
 
           return (
             <g
@@ -249,11 +334,10 @@ export const PakistanMap: React.FC<PakistanMapProps> = ({
                 <path
                   key={`${province.id}-${i}`}
                   d={d}
-                  fill={fillColor}
-                  stroke={isSelected ? '#14b8a6' : isHovered ? '#2dd4bf' : '#334155'}
-                  strokeWidth={isSelected ? 2.5 : isHovered ? 1.8 : 0.8}
+                  fill={isSelected ? '#0f2930' : isHovered ? '#142738' : '#090d16'}
+                  stroke={isSelected ? '#14b8a6' : isHovered ? '#2dd4bf' : '#1e293b'}
+                  strokeWidth={isSelected ? 2 : isHovered ? 1.5 : 0.8}
                   style={{
-                    filter: isSelected ? 'drop-shadow(0 0 8px rgba(20, 184, 166, 0.6))' : '',
                     transition: 'fill 0.2s, stroke 0.2s, stroke-width 0.2s'
                   }}
                 />
@@ -261,9 +345,131 @@ export const PakistanMap: React.FC<PakistanMapProps> = ({
             </g>
           );
         })}
+
+        {/* PRECISE CITY HEATMAP PINS & HOTSPOTS */}
+        {mappedCities.map((city) => {
+          const cx = city.x || 1200;
+          const cy = city.y || 600;
+          const radiusRatio = Math.min(city.total / maxCityLeads, 1);
+          const glowRadius = 35 + radiusRatio * 45;
+          const isCityActive = selectedCity?.toLowerCase() === city.city.toLowerCase();
+          const isCityHovered = hoveredCity?.city.toLowerCase() === city.city.toLowerCase();
+
+          return (
+            <g
+              key={city.city}
+              className="cursor-pointer group"
+              onMouseEnter={() => setHoveredCity(city)}
+              onMouseLeave={() => setHoveredCity(null)}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onCityClick) onCityClick(city.city);
+              }}
+            >
+              {/* Outer Heatmap Radial Glow */}
+              <circle
+                cx={cx}
+                cy={cy}
+                r={glowRadius}
+                fill={city.contacted > 0 ? "url(#contactedGlow)" : "url(#cityGlow)"}
+                opacity={isCityHovered || isCityActive ? 1 : 0.85}
+              />
+
+              {/* Pulsing Radar Wave */}
+              <circle
+                cx={cx}
+                cy={cy}
+                r={glowRadius * 0.7}
+                fill="none"
+                stroke={city.contacted > 0 ? "#10b981" : "#14b8a6"}
+                strokeWidth="2"
+                opacity="0.6"
+              />
+
+              {/* Core Searched Leads Circle */}
+              <circle
+                cx={cx}
+                cy={cy}
+                r={16 + radiusRatio * 10}
+                fill="#042f2e"
+                stroke={isCityActive ? "#f59e0b" : "#14b8a6"}
+                strokeWidth={isCityActive || isCityHovered ? "4" : "2.5"}
+                style={{
+                  filter: 'drop-shadow(0 0 8px rgba(20, 184, 166, 0.8))'
+                }}
+              />
+
+              {/* Contacted Core Proportion Dot */}
+              {city.contacted > 0 ? (
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={8 + (city.contacted / city.total) * 10}
+                  fill="#10b981"
+                  stroke="#a7f3d0"
+                  strokeWidth="1.5"
+                />
+              ) : (
+                <circle
+                  cx={cx}
+                  cy={cy}
+                  r={5}
+                  fill="#14b8a6"
+                />
+              )}
+
+              {/* City Label Badge */}
+              <g transform={`translate(${cx}, ${cy - (glowRadius * 0.6 + 18)})`}>
+                <rect
+                  x="-65"
+                  y="-18"
+                  width="130"
+                  height="26"
+                  rx="8"
+                  fill="#020617"
+                  stroke={city.contacted > 0 ? "#059669" : "#0d9488"}
+                  strokeWidth="1.5"
+                  opacity="0.95"
+                />
+                <text
+                  x="0"
+                  y="-1"
+                  textAnchor="middle"
+                  fill="#f8fafc"
+                  fontSize="15"
+                  fontWeight="bold"
+                  fontFamily="sans-serif"
+                >
+                  {city.city} ({city.total})
+                </text>
+              </g>
+            </g>
+          );
+        })}
       </svg>
 
-      {hoveredRegion && (
+      {/* Interactive Tooltip on Hover */}
+      {hoveredCity ? (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md border border-teal-500/80 px-4 py-2.5 rounded-xl shadow-2xl text-center pointer-events-none z-20 min-w-[200px]">
+          <div className="font-extrabold text-white text-sm flex items-center justify-center gap-1.5">
+            <span>📍 {hoveredCity.city}</span>
+            <span className="text-[10px] text-slate-400 font-normal">({hoveredCity.province})</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-1.5 pt-1.5 border-t border-slate-800 text-[11px]">
+            <div>
+              <span className="text-slate-400 block text-[10px]">Searched Leads</span>
+              <strong className="text-teal-400 text-xs font-mono">{hoveredCity.total}</strong>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px]">Contacted</span>
+              <strong className="text-emerald-400 text-xs font-mono">{hoveredCity.contacted}</strong>
+            </div>
+          </div>
+          <div className="text-[10px] text-teal-300 font-semibold mt-1">
+            👆 Click to filter {hoveredCity.city} leads below
+          </div>
+        </div>
+      ) : hoveredRegion ? (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-sm border border-slate-700/80 px-4 py-2 rounded-xl shadow-2xl text-center pointer-events-none z-10">
           <div className="font-bold text-white text-xs">{hoveredRegion}</div>
           <div className="text-teal-400 font-semibold font-mono text-[11px] mt-0.5">
@@ -275,7 +481,7 @@ export const PakistanMap: React.FC<PakistanMapProps> = ({
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };
