@@ -95,8 +95,20 @@ Best regards,
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshingLogs, setIsRefreshingLogs] = useState(false);
 
+  // Group / City Campaign Filters
+  const [batchCityFilter, setBatchCityFilter] = useState('ALL');
+  const [batchGroupFilter, setBatchGroupFilter] = useState('ALL');
+  const [batchStatusFilter, setBatchStatusFilter] = useState('New');
+
   // Webhook Automation Testing State
   const projectLeads = leads.filter(l => activeProject === 'General' || l.projectTag === activeProject);
+  const availableCities = Array.from(new Set(projectLeads.map(l => l.city).filter(Boolean))).sort();
+  const availableGroups = Array.from(new Set(projectLeads.map(l => l.groupTag).filter(Boolean))).sort();
+
+  const filteredTargetLeads = projectLeads
+    .filter(l => batchCityFilter === 'ALL' || l.city.toLowerCase() === batchCityFilter.toLowerCase())
+    .filter(l => batchGroupFilter === 'ALL' || l.groupTag === batchGroupFilter)
+    .filter(l => batchStatusFilter === 'ALL' || l.outreachStatus === batchStatusFilter);
   const [simulatingLeadId, setSimulatingLeadId] = useState<string>(projectLeads[0]?.id || '');
   const [simulatedReplyText, setSimulatedReplyText] = useState('Assalam o Alaikum! Yes, please share registration details for our agency.');
   const [isSimulatingInbound, setIsSimulatingInbound] = useState(false);

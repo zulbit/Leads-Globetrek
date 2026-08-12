@@ -586,6 +586,8 @@ export function App() {
               activeProject={activeProject}
               onOpenOutreachModal={handleOpenOutreachModal}
               onLoadDemoLeads={handleLoadDemoLeads}
+              whatsAppConfig={whatsAppConfig}
+              onRefreshLogs={fetchLogs}
             />
           )}
 

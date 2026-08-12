@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Lead, ProjectTag, OutreachStatus, WebsiteStatus } from '../types/scraper';
+import { Lead, ProjectTag, OutreachStatus, WebsiteStatus, WhatsAppConfig } from '../types/scraper';
 import { exportLeadsToCSV, parseCSVToLeads } from '../services/csvService';
 import { checkWebsiteHealth } from '../services/websiteHealthService';
 import { probeGoogleForOfficialWebsite } from '../services/googleSearchWebsiteProber';
+import { sendWhatsAppMessage, parseMessageTemplate } from '../services/whatsappService';
 import { 
   Users, 
   Search, 
@@ -24,7 +25,13 @@ import {
   BellRing,
   X,
   Tag,
-  FolderPlus
+  FolderPlus,
+  MessageSquare,
+  Loader2,
+  Shield,
+  CheckCheck,
+  Zap,
+  Code2
 } from 'lucide-react';
 
 interface LeadManagerProps {
@@ -33,6 +40,8 @@ interface LeadManagerProps {
   activeProject: ProjectTag;
   onOpenOutreachModal: (lead: Lead) => void;
   onLoadDemoLeads?: () => void;
+  whatsAppConfig?: WhatsAppConfig;
+  onRefreshLogs?: () => void;
 }
 
 export const LeadManager: React.FC<LeadManagerProps> = ({
@@ -40,7 +49,9 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
   setLeads,
   activeProject,
   onOpenOutreachModal,
-  onLoadDemoLeads
+  onLoadDemoLeads,
+  whatsAppConfig,
+  onRefreshLogs
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('ALL');
@@ -60,6 +71,133 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
   // Group Tagging Modal State
   const [isAssignGroupModalOpen, setIsAssignGroupModalOpen] = useState(false);
   const [newGroupTagName, setNewGroupTagName] = useState('');
+
+  // Group / City WhatsApp Batch Campaign Modal State
+  const [isBatchWhatsAppModalOpen, setIsBatchWhatsAppModalOpen] = useState(false);
+  const [batchDelaySeconds, setBatchDelaySeconds] = useState(8);
+  const [isDispatchingBatch, setIsDispatchingBatch] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
+  const [batchLogs, setBatchLogs] = useState<string[]>([]);
+  
+  const defaultGlobetrekPitch = `*GlobeTrek PK — Vendor Onboarding* 🌍✈️
+
+Dear *{{business_name}}*,
+
+Welcome to *GlobeTrek* — Pakistan’s first fully AI-powered travel & tourism portal!
+
+Seamlessly discover and manage global tours, visas, travel insurance, and ticketing all in one place.
+
+Ready to expand your reach in *{{city}}*? Enroll your travel business for *FREE* today and connect with thousands of active travelers across Pakistan. 🚀
+
+━━━━━━━━━━━━━━━━━━━
+🌐 *Explore GlobeTrek Portal:*
+https://globetrek.pk/
+
+✍️ *Register Your Business (Free):*
+https://globetrek.pk/auth?mode=signup&role=vendor
+
+📖 *Vendor Onboarding Guide:*
+https://globetrek.pk/vendor-guide
+━━━━━━━━━━━━━━━━━━━
+
+Best regards,
+*GlobeTrek Operations Team* 🌴`;
+
+  const defaultDreamstayPitch = `Hello {{business_name}}! Greetings from Dreamstay. We discovered your listing in {{city}} and would love to partner with you to boost your guest bookings and direct reservations across Pakistan. Let's connect on WhatsApp!`;
+
+  const [batchMessageTemplate, setBatchMessageTemplate] = useState(
+    activeProject === 'Dreamstay' ? defaultDreamstayPitch : defaultGlobetrekPitch
+  );
+
+  const selectedLeadsObjects = leads.filter(l => selectedLeadIds.includes(l.id));
+  const validPhoneLeads = selectedLeadsObjects.filter(l => Boolean(l.whatsapp || l.phone));
+
+  const handleStartGroupWhatsAppDispatch = async () => {
+    if (validPhoneLeads.length === 0) {
+      alert('None of the selected leads have a valid phone number.');
+      return;
+    }
+
+    const cfg: WhatsAppConfig = whatsAppConfig || {
+      serverUrl: 'https://wa.yello.bid',
+      apiToken: 'bef0066b8598f3c97dc16e7af12e95b98e773430',
+      instanceId: '1765976556c4ca4238a0b923820dcc509a6f75849b6942a9ec027d2',
+      autoFormatPkNumbers: true,
+      templates: []
+    };
+
+    setIsDispatchingBatch(true);
+    setBatchLogs([]);
+    setBatchProgress({ current: 0, total: validPhoneLeads.length });
+
+    const followUpDateStr = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const sessionToken = localStorage.getItem('access_token') || '';
+
+    let successCount = 0;
+
+    for (let i = 0; i < validPhoneLeads.length; i++) {
+      const lead = validPhoneLeads[i];
+      setBatchProgress({ current: i + 1, total: validPhoneLeads.length });
+
+      const res = await sendWhatsAppMessage(cfg, lead, batchMessageTemplate);
+
+      // Log to D1
+      if (sessionToken) {
+        try {
+          await fetch('/api/whatsapp-logs', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionToken}`
+            },
+            body: JSON.stringify({
+              leadId: lead.id,
+              phone: res.phone,
+              message: res.message,
+              serverResponse: res.success ? 'DELIVERED' : `FAILED: ${res.error || 'Gateway error'}`
+            })
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      if (res.success) {
+        successCount++;
+        setBatchLogs(prev => [
+          `[${i + 1}/${validPhoneLeads.length}] ✅ Delivered to ${lead.title} (${res.phone})`,
+          ...prev
+        ]);
+
+        // Update local lead state
+        setLeads(prev => prev.map(l => l.id === lead.id ? {
+          ...l,
+          outreachStatus: 'WhatsApp Sent',
+          lastContactedAt: new Date().toISOString(),
+          followUpDate: followUpDateStr,
+          followUpNotes: 'Group campaign outreach dispatched'
+        } : l));
+      } else {
+        setBatchLogs(prev => [
+          `[${i + 1}/${validPhoneLeads.length}] ❌ Failed for ${lead.title} (${res.phone}): ${res.error}`,
+          ...prev
+        ]);
+      }
+
+      // Anti-ban pause interval between messages
+      if (i < validPhoneLeads.length - 1) {
+        const jitter = Math.floor(Math.random() * 2000);
+        await new Promise(r => setTimeout(r, batchDelaySeconds * 1000 + jitter));
+      }
+    }
+
+    if (onRefreshLogs) {
+      onRefreshLogs();
+    }
+
+    setIsDispatchingBatch(false);
+    alert(`🎉 Campaign Complete! Dispatched ${successCount} of ${validPhoneLeads.length} WhatsApp messages.`);
+  };
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -393,21 +531,29 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
 
         {/* Bulk Action Toolbar */}
         {selectedLeadIds.length > 0 && (
-          <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs bg-slate-950/60 p-3 rounded-xl">
-            <span className="text-teal-400 font-semibold">
-              {selectedLeadIds.length} lead(s) selected
+          <div className="pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/60">
+            <span className="text-teal-400 font-bold flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-teal-400" />
+              {selectedLeadIds.length} lead(s) selected ({validPhoneLeads.length} ready for WhatsApp)
             </span>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                onClick={() => setIsBatchWhatsAppModalOpen(true)}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
+              >
+                <MessageSquare className="w-4 h-4" /> Send Group WhatsApp ({validPhoneLeads.length}) ➔
+              </button>
+
               <button
                 onClick={() => setIsAssignGroupModalOpen(true)}
-                className="px-3 py-1.5 rounded-lg bg-purple-950 text-purple-300 border border-purple-800 hover:bg-purple-900 font-semibold flex items-center gap-1.5"
+                className="px-3 py-2 rounded-xl bg-purple-950 text-purple-300 border border-purple-800 hover:bg-purple-900 font-semibold flex items-center gap-1.5 transition-all"
               >
-                <FolderPlus className="w-3.5 h-3.5" /> Assign Custom Group / Tag
+                <FolderPlus className="w-3.5 h-3.5" /> Assign Group / Tag
               </button>
 
               <button
                 onClick={handleDeleteSelected}
-                className="px-3 py-1.5 rounded-lg bg-red-950 text-red-300 border border-red-800 hover:bg-red-900 font-semibold flex items-center gap-1.5"
+                className="px-3 py-2 rounded-xl bg-red-950 text-red-300 border border-red-800 hover:bg-red-900 font-semibold flex items-center gap-1.5 transition-all"
               >
                 <Trash2 className="w-3.5 h-3.5" /> Delete Selected
               </button>
@@ -834,6 +980,162 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
                 className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 shadow-lg shadow-amber-500/20"
               >
                 <BellRing className="w-3.5 h-3.5" /> Save Reminder
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Group / City WhatsApp Batch Campaign Modal */}
+      {isBatchWhatsAppModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex justify-between items-start border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">Group WhatsApp Campaign Dispatcher</h3>
+                  <p className="text-xs text-slate-400">
+                    Dispatching to <strong className="text-emerald-400">{validPhoneLeads.length} Selected Leads</strong> {selectedCity !== 'ALL' ? `in ${selectedCity}` : ''}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => !isDispatchingBatch && setIsBatchWhatsAppModalOpen(false)} 
+                disabled={isDispatchingBatch}
+                className="text-slate-400 hover:text-white disabled:opacity-30"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Recipients Summary Badge */}
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <div className="text-slate-400 text-[10px]">Selected Leads</div>
+                <div className="text-sm font-extrabold text-white">{selectedLeadIds.length}</div>
+              </div>
+              <div className="bg-slate-950 p-2.5 rounded-xl border border-emerald-800/40">
+                <div className="text-emerald-400 text-[10px]">Ready to Send (Phone Verified)</div>
+                <div className="text-sm font-extrabold text-emerald-400">{validPhoneLeads.length}</div>
+              </div>
+              <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <div className="text-slate-500 text-[10px]">Skipped (No Phone)</div>
+                <div className="text-sm font-extrabold text-slate-400">{selectedLeadIds.length - validPhoneLeads.length}</div>
+              </div>
+            </div>
+
+            {/* Campaign Template Editor */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <label className="font-bold text-slate-300">Campaign Outreach Template</label>
+                <span className="text-[10px] text-slate-400">
+                  Placeholders: <code className="text-emerald-400">{"{{business_name}}"}</code>, <code className="text-emerald-400">{"{{city}}"}</code>
+                </span>
+              </div>
+              <textarea
+                rows={6}
+                value={batchMessageTemplate}
+                onChange={(e) => setBatchMessageTemplate(e.target.value)}
+                disabled={isDispatchingBatch}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono leading-relaxed disabled:opacity-60"
+              />
+            </div>
+
+            {/* Live Message Preview for First Lead */}
+            {validPhoneLeads.length > 0 && (
+              <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1 text-xs">
+                <div className="flex items-center gap-1.5 text-slate-400 font-semibold text-[11px]">
+                  <Code2 className="w-3.5 h-3.5 text-teal-400" /> Message Preview ({validPhoneLeads[0].title}):
+                </div>
+                <p className="text-[11px] text-emerald-300 font-mono bg-slate-900/80 p-2.5 rounded-lg border border-slate-800/80 whitespace-pre-wrap leading-relaxed max-h-24 overflow-y-auto">
+                  {parseMessageTemplate(batchMessageTemplate, validPhoneLeads[0])}
+                </p>
+              </div>
+            )}
+
+            {/* Anti-Ban Protection Settings */}
+            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <label className="text-slate-300 font-semibold flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-emerald-400" /> Anti-Spam Safety Pause:
+                </label>
+                <span className="text-[11px] text-emerald-400 font-mono font-bold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800/60">
+                  {batchDelaySeconds}s delay between messages
+                </span>
+              </div>
+              <input
+                type="range"
+                min="3"
+                max="20"
+                step="1"
+                value={batchDelaySeconds}
+                onChange={(e) => setBatchDelaySeconds(Number(e.target.value))}
+                disabled={isDispatchingBatch}
+                className="w-full accent-emerald-500 bg-slate-900 rounded-lg cursor-pointer h-1.5"
+              />
+              <p className="text-[10px] text-slate-400">
+                <strong className="text-amber-400">Anti-Ban Protection:</strong> Adds {batchDelaySeconds}s + random variation between dispatches to keep your WhatsApp number safe from spam detection.
+              </p>
+            </div>
+
+            {/* Live Dispatch Progress & Event Feed */}
+            {(isDispatchingBatch || batchLogs.length > 0) && (
+              <div className="bg-slate-950 p-4 rounded-xl border border-emerald-800/60 space-y-2 text-xs">
+                <div className="flex justify-between items-center font-bold">
+                  <span className="text-emerald-400 flex items-center gap-1.5">
+                    {isDispatchingBatch ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCheck className="w-4 h-4 text-emerald-400" />}
+                    {isDispatchingBatch ? 'Dispatching WhatsApp Campaign...' : 'Campaign Dispatched!'}
+                  </span>
+                  <span className="text-white font-mono">
+                    {batchProgress.current} / {batchProgress.total} ({Math.round((batchProgress.current / (batchProgress.total || 1)) * 100)}%)
+                  </span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-300"
+                    style={{ width: `${(batchProgress.current / (batchProgress.total || 1)) * 100}%` }}
+                  />
+                </div>
+
+                {/* Event Logs */}
+                <div className="max-h-32 overflow-y-auto font-mono text-[11px] text-slate-300 space-y-1 bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                  {batchLogs.map((log, i) => (
+                    <div key={i}>{log}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setIsBatchWhatsAppModalOpen(false)}
+                disabled={isDispatchingBatch}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-semibold disabled:opacity-50"
+              >
+                {batchLogs.length > 0 && !isDispatchingBatch ? 'Close Window' : 'Cancel'}
+              </button>
+              
+              <button
+                onClick={handleStartGroupWhatsAppDispatch}
+                disabled={isDispatchingBatch || validPhoneLeads.length === 0}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50 transition-all"
+              >
+                {isDispatchingBatch ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Dispatching Campaign...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" /> Launch Campaign to {validPhoneLeads.length} Leads 🚀
+                  </>
+                )}
               </button>
             </div>
           </div>
