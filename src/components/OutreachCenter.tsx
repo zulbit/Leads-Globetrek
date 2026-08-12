@@ -68,13 +68,13 @@ Ready to expand your reach in *{{city}}*? Enroll your travel business for *FREE*
 
 ━━━━━━━━━━━━━━━━━━━
 🌐 *Explore GlobeTrek Portal:*
-https://globetrek.testbench.shop/
+https://globetrek.pk/
 
 ✍️ *Register Your Business (Free):*
-https://globetrek.testbench.shop/auth?mode=signin
+https://globetrek.pk/auth?mode=signup&role=vendor
 
 📖 *Vendor Onboarding Guide:*
-https://globetrek.testbench.shop/vendor-guide
+https://globetrek.pk/vendor-guide
 ━━━━━━━━━━━━━━━━━━━
 
 Best regards,

@@ -84,7 +84,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
         let sentCount = 0;
         const template = task.projectTag === 'Dreamstay' 
           ? `Hello {{business_name}}! Greetings from Dreamstay. We discovered your listing in {{city}} and would love to partner with you to boost your guest bookings.`
-          : `*GlobeTrek PK — Vendor Onboarding* 🌍✈️\n\nDear *{{business_name}}*,\n\nWelcome to *GlobeTrek*! Register your business in {{city}} at https://globetrek.testbench.shop/auth?mode=signin`;
+          : `*GlobeTrek PK — Vendor Onboarding* 🌍✈️\n\nDear *{{business_name}}*,\n\nWelcome to *GlobeTrek*! Register your business in {{city}} at https://globetrek.pk/auth?mode=signup&role=vendor`;
 
         for (const lead of realLeads) {
           const res = await sendWhatsAppMessage(whatsAppConfig, lead, template);
