@@ -141,8 +141,64 @@ const INITIAL_LEADS: Lead[] = [
 const INITIAL_TASKS: TaskItem[] = [];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [activeProject, setActiveProject] = useState<ProjectTag>('Globetrek');
+  const getInitialTab = (): string => {
+    const hash = window.location.hash.replace(/^#\/?/, '').trim();
+    const validTabs = ['dashboard', 'apify', 'gmaps', 'social', 'linkedin', 'directories', 'leads', 'outreach', 'outreach-logs', 'tasks'];
+    if (hash && validTabs.includes(hash)) {
+      return hash;
+    }
+    const saved = localStorage.getItem('pk_active_tab');
+    if (saved && validTabs.includes(saved)) {
+      return saved;
+    }
+    return 'dashboard';
+  };
+
+  const getInitialProject = (): ProjectTag => {
+    const saved = localStorage.getItem('pk_active_project');
+    if (saved === 'Dreamstay' || saved === 'Globetrek' || saved === 'General') {
+      return saved as ProjectTag;
+    }
+    return 'Globetrek';
+  };
+
+  const [activeTab, setActiveTabState] = useState<string>(getInitialTab);
+  const [activeProject, setActiveProjectState] = useState<ProjectTag>(getInitialProject);
+
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab);
+    localStorage.setItem('pk_active_tab', tab);
+    if (window.location.hash.replace(/^#\/?/, '') !== tab) {
+      window.location.hash = `#/${tab}`;
+    }
+  };
+
+  const setActiveProject = (proj: ProjectTag) => {
+    setActiveProjectState(proj);
+    localStorage.setItem('pk_active_project', proj);
+  };
+
+  // Sync with browser URL hash navigation (back/forward buttons / manual URL changes)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace(/^#\/?/, '').trim();
+      const validTabs = ['dashboard', 'apify', 'gmaps', 'social', 'linkedin', 'directories', 'leads', 'outreach', 'outreach-logs', 'tasks'];
+      if (hash && validTabs.includes(hash) && hash !== activeTab) {
+        setActiveTabState(hash);
+        localStorage.setItem('pk_active_tab', hash);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeTab]);
+
+  // Ensure current active tab is always reflected in URL hash on mount
+  useEffect(() => {
+    if (!window.location.hash || window.location.hash === '#' || window.location.hash === '#/') {
+      window.location.hash = `#/${activeTab}`;
+    }
+  }, []);
   
   
   // Cloudflare D1 Cloud SQLite Database Integration Active & Authorized
