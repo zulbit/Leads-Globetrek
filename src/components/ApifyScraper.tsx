@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Lead, ApifyConfig, ProjectTag } from '../types/scraper';
-import { runApifyGoogleMapsScraper, fetchApifyDatasetByRunId } from '../services/apifyService';
-import { Bot, Key, Sparkles, MapPin, Search, CheckCircle2, AlertCircle, Loader2, Database, ExternalLink, Download } from 'lucide-react';
+import { runApifyGoogleMapsScraper, fetchApifyDatasetByRunId, getLocalRunHistory, getRecentApifyRuns, ScrapeRunRecord, saveLocalRunRecord } from '../services/apifyService';
+import { Bot, Key, Sparkles, MapPin, Search, CheckCircle2, AlertCircle, Loader2, Database, ExternalLink, Download, History, RefreshCw, Clock } from 'lucide-react';
 
 interface ApifyScraperProps {
   apifyConfig: ApifyConfig;
@@ -45,8 +45,26 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [pastRunId, setPastRunId] = useState('');
   const [isSyncingPastRun, setIsSyncingPastRun] = useState(false);
+  const [activeSyncingRunId, setActiveSyncingRunId] = useState<string | null>(null);
+  const [recentLocalRuns, setRecentLocalRuns] = useState<ScrapeRunRecord[]>(() => getLocalRunHistory());
+  const [apifyCloudRuns, setApifyCloudRuns] = useState<any[]>([]);
+  const [isLoadingCloudRuns, setIsLoadingCloudRuns] = useState(false);
 
   const activePresets = activeProject === 'Dreamstay' ? DREAMSTAY_PRESET_TERMS : GLOBETREK_PRESET_TERMS;
+
+  const refreshRecentRuns = async () => {
+    setRecentLocalRuns(getLocalRunHistory());
+    if (apiToken.trim()) {
+      setIsLoadingCloudRuns(true);
+      const runs = await getRecentApifyRuns(apiToken, 10);
+      setApifyCloudRuns(runs);
+      setIsLoadingCloudRuns(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshRecentRuns();
+  }, [apiToken]);
 
   const handleSaveConfig = () => {
     const trimmedToken = apiToken.trim();
@@ -55,10 +73,10 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
       apiToken: trimmedToken,
       displayName: displayName.trim()
     });
-    // Persist token so all scraper tabs can access it
     if (trimmedToken) {
       localStorage.setItem('apify_api_token', trimmedToken);
     }
+    refreshRecentRuns();
     alert('Apify Configuration Saved! All scraper tabs will now use this token.');
   };
 
@@ -89,6 +107,7 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
         onLogScraperTask(selectedTerm, selectedCity, 'Apify Cloud');
       }
       setStatusMessage(`Successfully extracted ${leads.length} leads from Apify Cloud!`);
+      refreshRecentRuns();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error executing Apify Actor');
     } finally {
@@ -113,7 +132,7 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
         apiToken,
         [selectedTerm],
         selectedCity,
-        1, // Only 1 result — minimal cost
+        1,
         activeProject
       );
 
@@ -124,6 +143,7 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
       } else {
         setStatusMessage('⚠️ Actor ran but returned 0 results. Try a different search term or city.');
       }
+      refreshRecentRuns();
     } catch (err: any) {
       setErrorMsg(`Test failed: ${err.message}`);
     } finally {
@@ -131,24 +151,26 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
     }
   };
 
-  const handleSyncPastRun = async () => {
+  const handleSyncPastRun = async (runIdToSync?: string) => {
+    const targetRunId = (runIdToSync || pastRunId).trim();
     if (!apiToken.trim()) {
       setErrorMsg('Please save your Apify API Token first before importing past runs.');
       return;
     }
-    if (!pastRunId.trim()) {
+    if (!targetRunId) {
       setErrorMsg('Please enter a valid Apify Run ID.');
       return;
     }
 
     setIsSyncingPastRun(true);
+    setActiveSyncingRunId(targetRunId);
     setErrorMsg('');
     setStatusMessage('📥 Syncing past run dataset items...');
 
     try {
       const leads = await fetchApifyDatasetByRunId(
         apiToken,
-        pastRunId,
+        targetRunId,
         selectedCity,
         activeProject
       );
@@ -156,14 +178,16 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
       setScrapedResults(leads);
       onLeadsScraped(leads);
       if (onLogScraperTask && leads.length > 0) {
-        onLogScraperTask(`Import Dataset (Run: ${pastRunId})`, selectedCity, 'Apify Import');
+        onLogScraperTask(`Import Dataset (Run: ${targetRunId})`, selectedCity, 'Apify Import');
       }
-      setStatusMessage(`✅ Loaded ${leads.length} leads from Run ID: ${pastRunId} at $0 cost!`);
+      setStatusMessage(`✅ Successfully loaded ${leads.length} leads from Run ID: ${targetRunId} at $0 cost!`);
       setPastRunId('');
+      refreshRecentRuns();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to retrieve dataset items from Run ID.');
     } finally {
       setIsSyncingPastRun(false);
+      setActiveSyncingRunId(null);
     }
   };
 
@@ -255,8 +279,27 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
 
           <div className="space-y-3 text-xs">
             <p className="text-[11px] text-slate-400 leading-normal">
-              Already ran a scrape on the Apify console? Paste the <strong>Run ID</strong> (from the Apify URL or runs table) to load the results for free.
+              Select or paste any <strong>Run ID</strong> to load all its scraped leads instantly into your database for free.
             </p>
+
+            {/* Quick Auto-Fill Selector */}
+            {recentLocalRuns.length > 0 && (
+              <div>
+                <label className="block text-slate-400 font-medium mb-1">Quick Select Recent Run</label>
+                <select
+                  onChange={(e) => setPastRunId(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-teal-300 font-mono text-xs focus:outline-none focus:border-teal-500"
+                  defaultValue=""
+                >
+                  <option value="" disabled>-- Choose a recent run to auto-fill --</option>
+                  {recentLocalRuns.map((r) => (
+                    <option key={r.runId} value={r.runId}>
+                      {r.city} • {r.platform} ({r.runId.slice(0, 10)}...)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-slate-400 font-medium mb-1">Apify Run ID</label>
@@ -270,7 +313,7 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
             </div>
 
             <button
-              onClick={handleSyncPastRun}
+              onClick={() => handleSyncPastRun()}
               disabled={isSyncingPastRun}
               className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
@@ -410,6 +453,136 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Recent Scraper Runs & Command History Section */}
+      <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800 shadow-lg space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2">
+            <History className="w-5 h-5 text-teal-400" />
+            <div>
+              <h3 className="font-bold text-white text-base">Recent Scraper Runs & Command History</h3>
+              <p className="text-xs text-slate-400">All recent scraper commands dispatched to Apify Cloud. 1-click sync any dataset at $0 cost.</p>
+            </div>
+          </div>
+          <button
+            onClick={refreshRecentRuns}
+            disabled={isLoadingCloudRuns}
+            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-all border border-slate-700 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingCloudRuns ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
+
+        {recentLocalRuns.length === 0 && apifyCloudRuns.length === 0 ? (
+          <div className="py-6 text-center text-xs text-slate-500">
+            <Clock className="w-6 h-6 mx-auto mb-2 text-slate-600" />
+            No recent scraping commands logged yet. When you scrape Google Maps, Facebook, or LinkedIn, runs will appear here automatically.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-800/80">
+            {/* Local app recent runs */}
+            {recentLocalRuns.map((run) => (
+              <div key={run.runId} className="py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-slate-950/40 p-2 rounded-xl transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 text-xs font-bold">
+                    {run.platform.includes('Facebook') ? 'FB' : run.platform.includes('LinkedIn') ? 'LI' : 'GM'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm text-white">{run.city} • {run.query}</h4>
+                      <span className="text-[10px] font-mono text-slate-400">({run.platform})</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                      <span className="font-mono text-teal-400 text-[11px]">{run.runId}</span>
+                      <span>•</span>
+                      <span>{run.createdAt}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    run.status === 'SUCCEEDED'
+                      ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                      : run.status === 'RUNNING'
+                      ? 'bg-amber-950 text-amber-300 border border-amber-800 animate-pulse'
+                      : 'bg-slate-950 text-slate-400 border border-slate-800'
+                  }`}>
+                    {run.status}
+                  </span>
+
+                  <button
+                    onClick={() => handleSyncPastRun(run.runId)}
+                    disabled={isSyncingPastRun && activeSyncingRunId === run.runId}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/10 flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  >
+                    {isSyncingPastRun && activeSyncingRunId === run.runId ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5" /> Sync ($0)
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Cloud Apify Account Runs */}
+            {apifyCloudRuns.filter(cr => !recentLocalRuns.some(lr => lr.runId === cr.id)).map((cr) => (
+              <div key={cr.id} className="py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-slate-950/40 p-2 rounded-xl transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 text-xs font-bold">
+                    API
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-sm text-white">Apify Actor Run</h4>
+                      <span className="text-[10px] font-mono text-slate-400">({cr.actId || 'Google Places'})</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                      <span className="font-mono text-purple-300 text-[11px]">{cr.id}</span>
+                      <span>•</span>
+                      <span>{new Date(cr.startedAt).toLocaleDateString()} {new Date(cr.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    cr.status === 'SUCCEEDED'
+                      ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                      : cr.status === 'RUNNING'
+                      ? 'bg-amber-950 text-amber-300 border border-amber-800 animate-pulse'
+                      : 'bg-slate-950 text-slate-400 border border-slate-800'
+                  }`}>
+                    {cr.status}
+                  </span>
+
+                  <button
+                    onClick={() => handleSyncPastRun(cr.id)}
+                    disabled={isSyncingPastRun && activeSyncingRunId === cr.id}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/10 flex items-center gap-1.5 transition-all disabled:opacity-50"
+                  >
+                    {isSyncingPastRun && activeSyncingRunId === cr.id ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5" /> Sync ($0)
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Scraped Results Preview */}

@@ -33,7 +33,7 @@ export const scrapeLeadsEngine = async (params: ScrapeParams): Promise<Lead[]> =
   const searchQuery = `${params.query} in ${params.city}, Pakistan`;
 
   try {
-    const webhookUrl = `https://leads-globetrek.pages.dev/api/apify-webhook?secret=${encodeURIComponent(secretToken)}&projectTag=${encodeURIComponent(params.projectTag)}&city=${encodeURIComponent(params.city)}&query=${encodeURIComponent(params.query)}&platform=${encodeURIComponent(params.platform)}`;
+    const webhookUrl = `https://leads-globetrek.pages.dev/api/apify-webhook?secret=${encodeURIComponent(secretToken)}&projectTag=${encodeURIComponent(params.projectTag)}&city=${encodeURIComponent(params.city)}&query=${encodeURIComponent(params.query)}&platform=${encodeURIComponent(params.platform)}&apifyToken=${encodeURIComponent(token.trim())}`;
 
     // Call the ASYNC run endpoint to avoid 5-minute HTTP timeouts
     const response = await fetch(

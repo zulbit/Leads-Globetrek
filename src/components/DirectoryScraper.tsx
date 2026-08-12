@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Lead, ProjectTag } from '../types/scraper';
 import { scrapeLeadsEngine } from '../services/scraperEngine';
-import { Building2, Sparkles, Loader2, Database, ExternalLink, CheckCircle2, MapPin } from 'lucide-react';
+import { saveLocalRunRecord, pollAndFetchApifyRun, fetchApifyDatasetByRunId } from '../services/apifyService';
+import { Building2, Sparkles, Loader2, Database, ExternalLink, CheckCircle2, MapPin, Download, AlertCircle } from 'lucide-react';
 
 interface DirectoryScraperProps {
   activeProject: ProjectTag;
   onLeadsScraped: (leads: Lead[]) => void;
+  onLogScraperTask?: (query: string, city: string, platform: string) => void;
 }
 
 const PAKISTAN_CITIES = [
@@ -17,12 +19,15 @@ const PAKISTAN_CITIES = [
 
 export const DirectoryScraper: React.FC<DirectoryScraperProps> = ({
   activeProject,
-  onLeadsScraped
+  onLeadsScraped,
+  onLogScraperTask
 }) => {
   const [directory, setDirectory] = useState('PakBiz Directory');
   const [city, setCity] = useState('Islamabad');
   const [query, setQuery] = useState(activeProject === 'Dreamstay' ? 'Guest Houses & Hotels' : 'Travel Agencies & Tour Operators');
   const [isScraping, setIsScraping] = useState(false);
+  const [pollStatus, setPollStatus] = useState<string>('');
+  const [isManualFetching, setIsManualFetching] = useState(false);
   const [scrapedLeads, setScrapedLeads] = useState<Lead[]>([]);
   const [successMsg, setSuccessMsg] = useState('');
   const [scrapeError, setScrapeError] = useState<string | null>(null);
@@ -33,25 +38,75 @@ export const DirectoryScraper: React.FC<DirectoryScraperProps> = ({
     setSuccessMsg('');
     setScrapeError(null);
     setScrapeSuccess(null);
+    setPollStatus(`🚀 Dispatching ${directory} scrape to Apify Cloud...`);
+
     try {
+      const platformName = directory === 'PakBiz Directory' ? 'PakBiz Directory' : 'YellowPages PK';
+      const token = localStorage.getItem('apify_api_token') || '';
       const leads = await scrapeLeadsEngine({
-        platform: directory === 'PakBiz Directory' ? 'PakBiz Directory' : 'YellowPages PK',
+        platform: platformName,
         query,
         city,
         count: 12,
-        projectTag: activeProject
+        projectTag: activeProject,
+        apifyToken: token
       });
       
       if (leads.length === 0) {
         setScrapeError('No results. Please configure your Apify API token in the Apify Cloud tab to scrape real leads.');
-      } else if (leads[0]?.id === 'async_trigger_success') {
+        setIsScraping(false);
+        return;
+      }
+
+      if (leads[0]?.id === 'async_trigger_success') {
+        const runId = leads[0].title;
         setScrapeSuccess({
-          runId: leads[0].title,
+          runId,
           city,
           query,
           count: 12
         });
-        setScrapedLeads([]);
+
+        // Save to local run history
+        saveLocalRunRecord({
+          runId,
+          platform: platformName,
+          query,
+          city,
+          count: 12,
+          projectTag: activeProject,
+          status: 'RUNNING',
+          createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+
+        if (onLogScraperTask) {
+          onLogScraperTask(query, city, `${platformName} (Run ID: ${runId})`);
+        }
+
+        // Auto-polling
+        if (token) {
+          setPollStatus(`⏳ Extracting ${directory} leads in the cloud...`);
+          try {
+            const extractedLeads = await pollAndFetchApifyRun(
+              token,
+              runId,
+              city,
+              activeProject,
+              (status, elapsed) => {
+                setPollStatus(`🔍 Apify status: ${status} (${elapsed}s elapsed)...`);
+              }
+            );
+
+            if (extractedLeads.length > 0) {
+              setScrapedLeads(extractedLeads);
+              onLeadsScraped(extractedLeads);
+              setSuccessMsg(`Extracted ${extractedLeads.length} verified leads from ${directory} (${city})!`);
+            }
+          } catch (pollErr: any) {
+            console.warn('Auto-polling notice:', pollErr.message);
+            setPollStatus(`Run dispatched (${runId}). Click "Fetch Leads Now" to sync.`);
+          }
+        }
       } else {
         setScrapedLeads(leads);
         onLeadsScraped(leads);
@@ -62,6 +117,31 @@ export const DirectoryScraper: React.FC<DirectoryScraperProps> = ({
       console.error(err);
     } finally {
       setIsScraping(false);
+    }
+  };
+
+  const handleManualFetchRun = async (runId: string) => {
+    const token = localStorage.getItem('apify_api_token') || '';
+    if (!token) {
+      setScrapeError('Please save your Apify API Token first in the Apify Cloud tab.');
+      return;
+    }
+
+    setIsManualFetching(true);
+    setScrapeError(null);
+    try {
+      const leads = await fetchApifyDatasetByRunId(token, runId, city, activeProject);
+      if (leads.length > 0) {
+        setScrapedLeads(leads);
+        onLeadsScraped(leads);
+        setSuccessMsg(`✅ Successfully imported ${leads.length} leads from Run ID: ${runId} at $0 cost!`);
+      } else {
+        setScrapeError('The run has 0 items or is still processing in Apify. Please check again in a moment.');
+      }
+    } catch (err: any) {
+      setScrapeError(err.message || 'Failed to fetch dataset items. The run may still be in progress.');
+    } finally {
+      setIsManualFetching(false);
     }
   };
 
@@ -147,22 +227,48 @@ export const DirectoryScraper: React.FC<DirectoryScraperProps> = ({
           )}
         </button>
 
+        {/* Live Auto-Polling Progress Bar */}
+        {isScraping && pollStatus && (
+          <div className="bg-slate-950 border border-amber-500/40 rounded-2xl p-4 shadow-lg flex items-center gap-3 text-xs text-amber-300 animate-pulse">
+            <Loader2 className="w-5 h-5 animate-spin text-amber-400 shrink-0" />
+            <div className="flex-1 font-mono">{pollStatus}</div>
+          </div>
+        )}
+
         {/* Asynchronous Trigger Success Card */}
         {scrapeSuccess && (
-          <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-5 shadow-lg flex items-start gap-4 transition-all">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 animate-pulse">
-              <CheckCircle2 className="w-4.5 h-4.5" />
-            </div>
-            <div className="space-y-1 text-xs">
-              <h4 className="text-xs font-bold text-white">🚀 Scraper Task Dispatched to Apify Cloud!</h4>
-              <p className="text-emerald-300 font-medium">
-                Successfully launched async extraction of <strong>{directory}</strong> leads for <strong>"{scrapeSuccess.query}"</strong> in <strong>{scrapeSuccess.city}</strong>.
-              </p>
-              <div className="pt-2 flex flex-col gap-1 text-[10px] text-slate-400">
-                <div>• <strong>Apify Run ID:</strong> <code className="text-slate-200 bg-slate-950 px-1.5 py-0.5 rounded text-[9px] font-mono">{scrapeSuccess.runId}</code></div>
-                <div>• <strong>Auto-Import Webhook:</strong> Active. Leads will automatically stream directly into your database.</div>
+          <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-5 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all">
+            <div className="flex items-start gap-4">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 animate-pulse">
+                <CheckCircle2 className="w-4.5 h-4.5" />
+              </div>
+              <div className="space-y-1 text-xs">
+                <h4 className="text-xs font-bold text-white">🚀 Scraper Task Dispatched to Apify Cloud!</h4>
+                <p className="text-emerald-300 font-medium">
+                  Extraction of <strong>{directory}</strong> leads for <strong>"{scrapeSuccess.query}"</strong> in <strong>{scrapeSuccess.city}</strong>.
+                </p>
+                <div className="pt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
+                  <span>• <strong>Run ID:</strong> <code className="text-slate-200 bg-slate-950 px-1.5 py-0.5 rounded text-[9px] font-mono">{scrapeSuccess.runId}</code></span>
+                  <span>• <strong>Auto-Stream:</strong> Active</span>
+                </div>
               </div>
             </div>
+
+            <button
+              onClick={() => handleManualFetchRun(scrapeSuccess.runId)}
+              disabled={isManualFetching}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all shrink-0 disabled:opacity-50"
+            >
+              {isManualFetching ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Fetching Dataset...
+                </>
+              ) : (
+                <>
+                  <Download className="w-3.5 h-3.5" /> Fetch Leads Now ($0)
+                </>
+              )}
+            </button>
           </div>
         )}
 

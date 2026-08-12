@@ -61,11 +61,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const city = url.searchParams.get('city') || 'Pakistan';
     const query = url.searchParams.get('query') || '';
     const platform = url.searchParams.get('platform') || 'Google Maps';
+    const apifyToken = url.searchParams.get('apifyToken') || '';
 
-    // Fetch scraped dataset items from Apify
-    const datasetRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items`);
+    // Fetch scraped dataset items from Apify (using apifyToken if provided)
+    const datasetFetchUrl = apifyToken 
+      ? `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(apifyToken)}`
+      : `https://api.apify.com/v2/datasets/${datasetId}/items`;
+      
+    const datasetRes = await fetch(datasetFetchUrl);
     if (!datasetRes.ok) {
-      throw new Error(`Failed to fetch dataset items: ${datasetRes.status}`);
+      throw new Error(`Failed to fetch dataset items (${datasetRes.status})`);
     }
 
     const items = await datasetRes.json() as any[];

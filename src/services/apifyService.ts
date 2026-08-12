@@ -112,6 +112,132 @@ export const fetchApifyDatasetByRunId = async (
 };
 
 
+export interface ScrapeRunRecord {
+  runId: string;
+  platform: string;
+  query: string;
+  city: string;
+  count: number;
+  projectTag: ProjectTag;
+  status: 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'ABORTED' | 'TIMED-OUT';
+  createdAt: string;
+  datasetId?: string;
+  leadCount?: number;
+}
+
+export const getLocalRunHistory = (): ScrapeRunRecord[] => {
+  try {
+    const raw = localStorage.getItem('pk_recent_scraper_runs');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.error('Failed to load local run history', e);
+  }
+  return [];
+};
+
+export const saveLocalRunRecord = (record: ScrapeRunRecord): void => {
+  try {
+    const existing = getLocalRunHistory();
+    const filtered = existing.filter(r => r.runId !== record.runId);
+    const updated = [record, ...filtered].slice(0, 30); // Keep last 30 runs
+    localStorage.setItem('pk_recent_scraper_runs', JSON.stringify(updated));
+  } catch (e) {
+    console.error('Failed to save run record', e);
+  }
+};
+
+export const updateLocalRunStatus = (runId: string, status: ScrapeRunRecord['status'], leadCount?: number): void => {
+  try {
+    const existing = getLocalRunHistory();
+    const updated = existing.map(r => r.runId === runId ? { ...r, status, leadCount: leadCount ?? r.leadCount } : r);
+    localStorage.setItem('pk_recent_scraper_runs', JSON.stringify(updated));
+  } catch (e) {
+    console.error('Failed to update run status', e);
+  }
+};
+
+/**
+ * Fetch list of recent actor runs directly from Apify's API
+ */
+export const getRecentApifyRuns = async (token: string, limit = 15): Promise<any[]> => {
+  if (!token) return [];
+  try {
+    const res = await fetch(`https://api.apify.com/v2/actor-runs?token=${encodeURIComponent(token.trim())}&limit=${limit}&desc=true`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.data?.items || [];
+  } catch (err) {
+    console.error('Failed to fetch recent Apify runs', err);
+    return [];
+  }
+};
+
+/**
+ * Automatically polls Apify run status until completion and immediately returns all extracted leads.
+ */
+export const pollAndFetchApifyRun = async (
+  token: string,
+  runId: string,
+  city: string,
+  projectTag: ProjectTag,
+  onProgress?: (status: string, elapsedSeconds: number) => void
+): Promise<Lead[]> => {
+  if (!token) throw new Error('Apify API Token is required');
+  if (!runId) throw new Error('Run ID is required');
+
+  const runUrl = `https://api.apify.com/v2/actor-runs/${runId.trim()}?token=${encodeURIComponent(token.trim())}`;
+  
+  const startTime = Date.now();
+  const maxWaitMs = 180000; // 3 minutes max polling
+  const pollIntervalMs = 4000; // Poll every 4 seconds
+
+  while (Date.now() - startTime < maxWaitMs) {
+    const elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
+    
+    try {
+      const res = await fetch(runUrl);
+      if (!res.ok) {
+        throw new Error(`Apify status check failed (${res.status})`);
+      }
+      const data = await res.json();
+      const status = data.data?.status;
+      const datasetId = data.data?.defaultDatasetId;
+
+      if (onProgress) {
+        onProgress(status || 'RUNNING', elapsedSeconds);
+      }
+
+      if (status === 'SUCCEEDED') {
+        updateLocalRunStatus(runId, 'SUCCEEDED');
+        if (!datasetId) throw new Error('No dataset ID returned for succeeded run');
+        const datasetUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(token.trim())}`;
+        const datasetRes = await fetch(datasetUrl);
+        if (!datasetRes.ok) throw new Error('Failed to retrieve dataset items');
+        const items = await datasetRes.json();
+        const leads = mapApifyItemsToLeads(items, city, projectTag, runId);
+        updateLocalRunStatus(runId, 'SUCCEEDED', leads.length);
+        return leads;
+      }
+
+      if (status === 'FAILED' || status === 'ABORTED' || status === 'TIMED-OUT') {
+        updateLocalRunStatus(runId, status as any);
+        throw new Error(`Apify run ended with status: ${status}`);
+      }
+    } catch (err: any) {
+      if (err.message.includes('ended with status')) throw err;
+      console.warn('Polling check error, retrying...', err);
+    }
+
+    await new Promise(r => setTimeout(r, pollIntervalMs));
+  }
+
+  updateLocalRunStatus(runId, 'TIMED-OUT');
+  throw new Error('Apify run polling timed out after 3 minutes. You can sync it anytime using the Run ID.');
+};
+
 export const mapApifyItemsToLeads = (
   items: any[],
   city: string,

@@ -559,6 +559,7 @@ export function App() {
             <SocialScraper
               activeProject={activeProject}
               onLeadsScraped={handleLeadsScraped}
+              onLogScraperTask={handleLogScraperTask}
             />
           )}
 
@@ -566,6 +567,7 @@ export function App() {
             <LinkedInScraper
               activeProject={activeProject}
               onLeadsScraped={handleLeadsScraped}
+              onLogScraperTask={handleLogScraperTask}
             />
           )}
 
@@ -573,6 +575,7 @@ export function App() {
             <DirectoryScraper
               activeProject={activeProject}
               onLeadsScraped={handleLeadsScraped}
+              onLogScraperTask={handleLogScraperTask}
             />
           )}
 

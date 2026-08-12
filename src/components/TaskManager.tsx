@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { TaskItem, ProjectTag, Lead, WhatsAppConfig } from '../types/scraper';
 import { scrapeLeadsEngine } from '../services/scraperEngine';
+import { fetchApifyDatasetByRunId } from '../services/apifyService';
 import { sendWhatsAppMessage } from '../services/whatsappService';
-import { CheckSquare, Plus, CheckCircle2, Clock, Play, Trash2 } from 'lucide-react';
+import { CheckSquare, Plus, CheckCircle2, Clock, Play, Trash2, Download, Loader2 } from 'lucide-react';
 
 const PK_CITIES = [
   'Abbottabad', 'Ayubia', 'Bahawalpur', 'Chitral', 'Dir', 'Faisalabad', 'Gilgit', 'Gujranwala', 'Gujrat', 
@@ -31,7 +32,51 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   const [scheduleFreq, setScheduleFreq] = useState<'Once' | 'Weekly' | 'Monthly'>('Weekly');
   const [autoOutreachToggle, setAutoOutreachToggle] = useState(true);
   const [runningTaskId, setRunningTaskId] = useState<string | null>(null);
+  const [fetchingTaskId, setFetchingTaskId] = useState<string | null>(null);
   const [executionLog, setExecutionLog] = useState<string[]>([]);
+
+  const extractRunId = (title: string): string | null => {
+    const match = title.match(/Run ID:\s*([a-zA-Z0-9_-]+)/i);
+    return match ? match[1] : null;
+  };
+
+  const handleFetchDatasetForTask = async (task: TaskItem, runId: string) => {
+    const token = localStorage.getItem('apify_api_token') || '';
+    if (!token) {
+      alert('Please save your Apify API Token first in the Apify Cloud tab.');
+      return;
+    }
+
+    setFetchingTaskId(task.id);
+    setExecutionLog([
+      `📥 Fetching dataset for Run ID: ${runId}...`,
+      `🔍 Target: ${task.targetCity} (${task.category})`
+    ]);
+
+    try {
+      const leads = await fetchApifyDatasetByRunId(token, runId, task.targetCity, task.projectTag);
+      if (leads.length > 0) {
+        if (onLeadsScraped) onLeadsScraped(leads);
+        setExecutionLog(prev => [
+          ...prev,
+          `✅ Successfully loaded ${leads.length} leads directly from Apify dataset!`,
+          `💾 Synced ${leads.length} records to your Lead Hub.`
+        ]);
+      } else {
+        setExecutionLog(prev => [
+          ...prev,
+          `⚠️ Dataset returned 0 items. The run may still be in progress on Apify.`
+        ]);
+      }
+    } catch (err: any) {
+      setExecutionLog(prev => [
+        ...prev,
+        `❌ Dataset Fetch Error: ${err.message}`
+      ]);
+    } finally {
+      setFetchingTaskId(null);
+    }
+  };
 
   const handleAddTask = () => {
     if (!newTitle.trim()) return;
@@ -270,6 +315,25 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                {extractRunId(task.title) && (
+                  <button
+                    onClick={() => handleFetchDatasetForTask(task, extractRunId(task.title)!)}
+                    disabled={fetchingTaskId === task.id}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                    title="Fetch leads directly from this Apify dataset at $0 cost"
+                  >
+                    {fetchingTaskId === task.id ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Fetching...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5" /> Fetch Leads ($0)
+                      </>
+                    )}
+                  </button>
+                )}
+
                 <button
                   onClick={() => handleRunTaskNow(task)}
                   disabled={runningTaskId === task.id}
