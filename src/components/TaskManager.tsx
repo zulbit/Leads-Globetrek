@@ -33,7 +33,14 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   const [autoOutreachToggle, setAutoOutreachToggle] = useState(true);
   const [runningTaskId, setRunningTaskId] = useState<string | null>(null);
   const [fetchingTaskId, setFetchingTaskId] = useState<string | null>(null);
-  const [fetchedTaskIds, setFetchedTaskIds] = useState<Record<string, number>>({});
+  const [fetchedTaskIds, setFetchedTaskIds] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('pk_synced_tasks');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [executionLog, setExecutionLog] = useState<string[]>([]);
 
   const extractRunId = (title: string): string | null => {
@@ -58,7 +65,11 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       const leads = await fetchApifyDatasetByRunId(token, runId, task.targetCity, task.projectTag);
       if (leads.length > 0) {
         if (onLeadsScraped) onLeadsScraped(leads);
-        setFetchedTaskIds(prev => ({ ...prev, [task.id]: leads.length }));
+        setFetchedTaskIds(prev => {
+          const updated = { ...prev, [task.id]: leads.length };
+          localStorage.setItem('pk_synced_tasks', JSON.stringify(updated));
+          return updated;
+        });
         setExecutionLog(prev => [
           ...prev,
           `✅ Successfully loaded ${leads.length} leads directly from Apify dataset!`,
