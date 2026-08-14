@@ -33,6 +33,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   const [autoOutreachToggle, setAutoOutreachToggle] = useState(true);
   const [runningTaskId, setRunningTaskId] = useState<string | null>(null);
   const [fetchingTaskId, setFetchingTaskId] = useState<string | null>(null);
+  const [fetchedTaskIds, setFetchedTaskIds] = useState<Record<string, number>>({});
   const [executionLog, setExecutionLog] = useState<string[]>([]);
 
   const extractRunId = (title: string): string | null => {
@@ -57,6 +58,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
       const leads = await fetchApifyDatasetByRunId(token, runId, task.targetCity, task.projectTag);
       if (leads.length > 0) {
         if (onLeadsScraped) onLeadsScraped(leads);
+        setFetchedTaskIds(prev => ({ ...prev, [task.id]: leads.length }));
         setExecutionLog(prev => [
           ...prev,
           `✅ Successfully loaded ${leads.length} leads directly from Apify dataset!`,
@@ -319,12 +321,20 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                   <button
                     onClick={() => handleFetchDatasetForTask(task, extractRunId(task.title)!)}
                     disabled={fetchingTaskId === task.id}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 ${
+                      fetchedTaskIds[task.id]
+                        ? 'bg-teal-950/80 text-teal-300 border-teal-700/80'
+                        : 'bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border-emerald-700/60'
+                    }`}
                     title="Fetch leads directly from this Apify dataset at $0 cost"
                   >
                     {fetchingTaskId === task.id ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" /> Fetching...
+                      </>
+                    ) : fetchedTaskIds[task.id] ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" /> ✓ Synced ({fetchedTaskIds[task.id]})
                       </>
                     ) : (
                       <>

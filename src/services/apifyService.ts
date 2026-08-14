@@ -58,7 +58,7 @@ export const runApifyGoogleMapsScraper = async (
     }
 
     // Wait a brief moment & fetch dataset items (or return direct items)
-    const datasetUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(token.trim())}`;
+    const datasetUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(token.trim())}&limit=10000`;
     
     // Poll dataset — Apify runs take 30-60s, so poll up to 12 times (60s total)
     let items: any[] = [];
@@ -102,7 +102,7 @@ export const fetchApifyDatasetByRunId = async (
     throw new Error('No dataset associated with this Run ID.');
   }
 
-  const datasetUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(token.trim())}`;
+  const datasetUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(token.trim())}&limit=10000`;
   const res = await fetch(datasetUrl);
   if (!res.ok) {
     throw new Error('Failed to retrieve dataset items.');
@@ -213,7 +213,7 @@ export const pollAndFetchApifyRun = async (
       if (status === 'SUCCEEDED') {
         updateLocalRunStatus(runId, 'SUCCEEDED');
         if (!datasetId) throw new Error('No dataset ID returned for succeeded run');
-        const datasetUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(token.trim())}`;
+        const datasetUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(token.trim())}&limit=10000`;
         const datasetRes = await fetch(datasetUrl);
         if (!datasetRes.ok) throw new Error('Failed to retrieve dataset items');
         const items = await datasetRes.json();
@@ -248,6 +248,14 @@ export const mapApifyItemsToLeads = (
     const rawPhone = item.phone || item.phoneNumber || item.phoneUnformatted || '';
     const formattedPhone = formatPakistanPhone(rawPhone);
     
+    // Normalize city fallback
+    let detectedCity = item.city || '';
+    if (!detectedCity || detectedCity.toLowerCase() === 'isl' || detectedCity.toLowerCase().includes('islamabad') || detectedCity.toLowerCase().includes('capital territory')) {
+      detectedCity = city && city.toLowerCase() !== 'all' ? city : 'Islamabad';
+    } else if (city && city.toLowerCase() !== 'all' && !detectedCity) {
+      detectedCity = city;
+    }
+
     return {
       id: `apify_${runId || 'run'}_${index}_${Date.now()}`,
       title: item.title || item.name || item.businessName || 'Pakistan Business',
@@ -256,8 +264,8 @@ export const mapApifyItemsToLeads = (
       whatsapp: formattedPhone || rawPhone || '',
       email: item.email || item.contactEmail || item.emails?.[0] || '',
       website: item.website || item.url || '',
-      address: item.address || item.street || `${city}, Pakistan`,
-      city: item.city || city,
+      address: item.address || item.street || `${detectedCity}, Pakistan`,
+      city: detectedCity,
       country: 'Pakistan',
       category: item.categoryName || item.category || 'Hospitality / Travel',
       rating: item.totalScore || item.rating || undefined,
@@ -270,3 +278,4 @@ export const mapApifyItemsToLeads = (
     };
   });
 };
+

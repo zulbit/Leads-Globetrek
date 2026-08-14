@@ -276,7 +276,11 @@ Best regards,
     return matchesProject && matchesSearch && matchesCity && matchesStatus && matchesSource && matchesWebStatus && matchesFollowUp && matchesGroup;
   });
 
-  const cities = Array.from(new Set(leads.map(l => l.city))).filter(Boolean);
+  const PK_DEFAULT_CITIES = [
+    'Islamabad', 'Lahore', 'Karachi', 'Rawalpindi', 'Peshawar', 'Quetta', 'Multan', 'Faisalabad',
+    'Gujranwala', 'Sialkot', 'Abbottabad', 'Murree', 'Hunza', 'Skardu', 'Gilgit', 'Swat', 'Naran'
+  ];
+  const cities = Array.from(new Set([...PK_DEFAULT_CITIES, ...leads.map(l => l.city)])).filter(Boolean).sort();
   const dueFollowUpCount = leads.filter(l => (activeProject === 'General' || l.projectTag === activeProject) && l.followUpDate && l.followUpDate <= todayStr).length;
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
