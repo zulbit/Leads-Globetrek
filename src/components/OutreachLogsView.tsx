@@ -13,6 +13,8 @@ import {
   Clock 
 } from 'lucide-react';
 
+import { isPakistanMobileNumber } from '../services/whatsappService';
+
 interface OutreachLogsViewProps {
   whatsappLogs: any[];
   onRefreshLogs: () => Promise<void>;
@@ -26,7 +28,15 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'delivered' | 'inbound' | 'failed'>('all');
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'delivered' | 'inbound' | 'failed' | 'landline'>('all');
+
+  const getLogCategory = (log: any): 'INBOUND' | 'DELIVERED' | 'FAILED' | 'LANDLINE' => {
+    if (log.serverResponse === 'INBOUND_REPLY') return 'INBOUND';
+    const isMobile = isPakistanMobileNumber(log.phone || '');
+    if (!isMobile) return 'LANDLINE';
+    if (log.serverResponse === 'DELIVERED') return 'DELIVERED';
+    return 'FAILED';
+  };
 
   const filteredProjectLogs = whatsappLogs.filter(l => 
     activeProject === 'General' || l.projectTag === activeProject
@@ -34,15 +44,18 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
 
   const totalSent = filteredProjectLogs.filter(l => l.serverResponse !== 'INBOUND_REPLY').length;
   const totalInbound = filteredProjectLogs.filter(l => l.serverResponse === 'INBOUND_REPLY').length;
-  const totalDelivered = filteredProjectLogs.filter(l => l.serverResponse === 'DELIVERED').length;
-  const totalFailed = filteredProjectLogs.filter(l => l.serverResponse !== 'DELIVERED' && l.serverResponse !== 'INBOUND_REPLY').length;
+  const totalDelivered = filteredProjectLogs.filter(l => getLogCategory(l) === 'DELIVERED').length;
+  const totalLandlines = filteredProjectLogs.filter(l => getLogCategory(l) === 'LANDLINE').length;
+  const totalFailed = filteredProjectLogs.filter(l => getLogCategory(l) === 'FAILED' || getLogCategory(l) === 'LANDLINE').length;
   const successRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0;
 
   const displayLogs = filteredProjectLogs
     .filter(l => {
-      if (selectedFilter === 'delivered') return l.serverResponse === 'DELIVERED';
-      if (selectedFilter === 'inbound') return l.serverResponse === 'INBOUND_REPLY';
-      if (selectedFilter === 'failed') return l.serverResponse !== 'DELIVERED' && l.serverResponse !== 'INBOUND_REPLY';
+      const cat = getLogCategory(l);
+      if (selectedFilter === 'delivered') return cat === 'DELIVERED';
+      if (selectedFilter === 'inbound') return cat === 'INBOUND';
+      if (selectedFilter === 'failed') return cat === 'FAILED' || cat === 'LANDLINE';
+      if (selectedFilter === 'landline') return cat === 'LANDLINE';
       return true;
     })
     .filter(l => {
@@ -175,21 +188,31 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
               onClick={() => setSelectedFilter('delivered')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 selectedFilter === 'delivered'
-                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/60 shadow-sm'
+                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               Delivered ({totalDelivered})
             </button>
             <button
-              onClick={() => setSelectedFilter('failed')}
+              onClick={() => setSelectedFilter('landline')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                selectedFilter === 'failed'
-                  ? 'bg-red-950 text-red-300 border border-red-800/60 shadow-sm'
+                selectedFilter === 'landline'
+                  ? 'bg-amber-950 text-amber-300 border border-amber-800'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Failed ({totalFailed})
+              Landlines ({totalLandlines})
+            </button>
+            <button
+              onClick={() => setSelectedFilter('failed')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                selectedFilter === 'failed'
+                  ? 'bg-red-950 text-red-300 border border-red-800'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              All Failed ({totalFailed})
             </button>
           </div>
         </div>
@@ -208,27 +231,37 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-800/50">
               {displayLogs.map((log) => {
-                const isInbound = log.serverResponse === 'INBOUND_REPLY';
-                const isSuccess = log.serverResponse === 'DELIVERED';
+                const category = getLogCategory(log);
+                const isInbound = category === 'INBOUND';
+                const isDelivered = category === 'DELIVERED';
+                const isLandline = category === 'LANDLINE';
+
                 return (
                   <tr key={log.id} className={`transition-colors ${isInbound ? 'bg-purple-950/20 hover:bg-purple-950/30' : 'hover:bg-slate-850/50'}`}>
                     <td className="py-3 px-4 font-semibold text-white">
                       <div className="flex items-center gap-2">
                         <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
-                          isInbound ? 'bg-purple-900 text-purple-200' : 'bg-slate-800 text-teal-400'
+                          isInbound ? 'bg-purple-900 text-purple-200' : isLandline ? 'bg-amber-950 text-amber-400' : 'bg-slate-800 text-teal-400'
                         }`}>
-                          {isInbound ? '📥' : (log.businessName || 'L').charAt(0).toUpperCase()}
+                          {isInbound ? '📥' : isLandline ? '☎️' : (log.businessName || 'L').charAt(0).toUpperCase()}
                         </div>
                         <div>
                           <span className="truncate block">{log.businessName || 'Unknown Business'}</span>
                           {isInbound && (
                             <span className="text-[10px] text-purple-400 font-semibold">Vendor WhatsApp Reply</span>
                           )}
+                          {isLandline && (
+                            <span className="text-[10px] text-amber-400 font-semibold">PTCL / Landline Number</span>
+                          )}
                         </div>
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="font-mono text-teal-300 bg-slate-950 px-2 py-1 rounded border border-slate-800 text-[11px]">
+                      <span className={`font-mono px-2 py-1 rounded border text-[11px] ${
+                        isLandline 
+                          ? 'bg-amber-950/40 text-amber-300 border-amber-800/60' 
+                          : 'bg-slate-950 text-teal-300 border-slate-800'
+                      }`}>
                         {log.phone}
                       </span>
                     </td>
@@ -252,9 +285,13 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-extrabold bg-purple-950 text-purple-300 border border-purple-700/60 shadow-sm shadow-purple-950">
                           📥 INBOUND REPLY
                         </span>
-                      ) : isSuccess ? (
+                      ) : isDelivered ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-extrabold bg-emerald-950 text-emerald-300 border border-emerald-700/60 shadow-sm shadow-emerald-950">
                           <CheckCheck className="w-4 h-4 text-emerald-400" /> DELIVERED
+                        </span>
+                      ) : isLandline ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-extrabold bg-amber-950 text-amber-300 border border-amber-700/60 shadow-sm shadow-amber-950" title="PTCL Landline cannot receive WhatsApp">
+                          ☎️ FAILED (LANDLINE)
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-extrabold bg-red-950 text-red-300 border border-red-700/60 shadow-sm shadow-red-950">
