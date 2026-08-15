@@ -57,6 +57,35 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       messageText = waMsg.text?.body || messageText;
     }
 
+    // Handle delivery status update webhooks (e.g. from wa.yello.bid / WhatsApp Gateway status callbacks)
+    const statusUpdate = rawBody.status || rawBody.event || rawBody.delivery_status || '';
+    const messageId = rawBody.messageId || rawBody.message_id || rawBody.id || '';
+    
+    if (statusUpdate && (statusUpdate.toLowerCase() === 'failed' || statusUpdate.toLowerCase() === 'delivered' || statusUpdate.toLowerCase() === 'sent')) {
+      const isFailed = statusUpdate.toLowerCase() === 'failed';
+      const serverStatus = isFailed ? `FAILED: ${rawBody.reason || rawBody.error || 'Recipient not on WhatsApp / Landline'}` : 'DELIVERED';
+
+      if (messageId) {
+        await env.DB.prepare(`
+          UPDATE whatsapp_logs 
+          SET serverResponse = ?
+          WHERE id = ? OR message LIKE ?
+        `).bind(serverStatus, messageId, `%${messageId}%`).run();
+      } else if (sender) {
+        await env.DB.prepare(`
+          UPDATE whatsapp_logs 
+          SET serverResponse = ?
+          WHERE phone = ?
+          ORDER BY sentAt DESC
+          LIMIT 1
+        `).bind(serverStatus, sender).run();
+      }
+
+      return new Response(JSON.stringify({ success: true, action: 'STATUS_UPDATED', status: serverStatus }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     if (!sender) {
       return new Response(JSON.stringify({ error: 'Missing sender phone number in webhook payload' }), {
         status: 400,

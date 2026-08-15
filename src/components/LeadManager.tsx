@@ -178,8 +178,9 @@ Best regards,
           followUpNotes: 'Group campaign outreach dispatched'
         } : l));
       } else {
+        const isLandline = res.error?.includes('PTCL landline');
         setBatchLogs(prev => [
-          `[${i + 1}/${validPhoneLeads.length}] ❌ Failed for ${lead.title} (${res.phone}): ${res.error}`,
+          `[${i + 1}/${validPhoneLeads.length}] ${isLandline ? '⚠️ Skipped (Landline)' : '❌ Failed'} for ${lead.title} (${res.phone}): ${res.error}`,
           ...prev
         ]);
       }

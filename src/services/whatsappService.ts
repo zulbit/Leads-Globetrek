@@ -38,6 +38,13 @@ export interface SendResult {
   error?: string;
 }
 
+// Checks if phone is a valid Pakistan mobile number capable of having a WhatsApp account
+export const isPakistanMobileNumber = (phone: string): boolean => {
+  const formatted = formatPakistanPhone(phone);
+  // Valid PK mobile formats start with +923xx followed by 8 digits (total 13 chars)
+  return /^\+923[0-7]\d{8}$/.test(formatted);
+};
+
 /**
  * Live WhatsApp Number Validator
  * Checks if phone number is registered & active on WhatsApp server
@@ -47,17 +54,21 @@ export const verifyWhatsAppNumber = async (
   phone: string
 ): Promise<{ isRegistered: boolean; formattedPhone: string; statusText: string }> => {
   const formatted = formatPakistanPhone(phone);
-  if (!formatted || formatted.length < 12) {
+  if (!formatted || formatted.length < 11) {
     return { isRegistered: false, formattedPhone: formatted, statusText: 'Invalid Phone Format' };
   }
 
-  // Mobile prefix pattern check — this only validates FORMAT, not actual WhatsApp registration
-  const isMobilePrefix = /^\+923[0-5]\d{8}$/.test(formatted);
-  if (isMobilePrefix) {
-    return { isRegistered: true, formattedPhone: formatted, statusText: 'Valid PK Mobile Format (WhatsApp unverified)' };
+  // Mobile prefix pattern check
+  if (isPakistanMobileNumber(formatted)) {
+    return { isRegistered: true, formattedPhone: formatted, statusText: 'Valid PK Mobile (WhatsApp Ready)' };
   }
 
-  return { isRegistered: false, formattedPhone: formatted, statusText: 'Landline / Inactive Number' };
+  // If starts with +9221 (Karachi), +9251 (Islamabad/Rwp), +9242 (Lahore) or +92111 (UAN)
+  if (formatted.startsWith('+9221') || formatted.startsWith('+9251') || formatted.startsWith('+9242') || formatted.startsWith('+92111')) {
+    return { isRegistered: false, formattedPhone: formatted, statusText: 'PTCL / Landline (No WhatsApp)' };
+  }
+
+  return { isRegistered: false, formattedPhone: formatted, statusText: 'Non-Mobile / Landline' };
 };
 
 export const sendWhatsAppMessage = async (
@@ -90,6 +101,18 @@ export const sendWhatsAppMessage = async (
       message: finalMessage,
       deliveryStatus: 'FAILED_NOT_REGISTERED',
       error: 'Invalid or missing WhatsApp phone number'
+    };
+  }
+
+  // Pre-validate for Pakistan mobile number (+923xx) — skip PTCL/Landlines
+  if (!isPakistanMobileNumber(formattedPhone)) {
+    return {
+      success: false,
+      leadId: lead.id,
+      phone: formattedPhone,
+      message: finalMessage,
+      deliveryStatus: 'FAILED_NOT_REGISTERED',
+      error: `Skipped: ${formattedPhone} is a PTCL landline/UAN, not a WhatsApp mobile number`
     };
   }
 
