@@ -238,6 +238,28 @@ export const pollAndFetchApifyRun = async (
   throw new Error('Apify run polling timed out after 3 minutes. You can sync it anytime using the Run ID.');
 };
 
+export const normalizeCityName = (cityStr: string): string => {
+  if (!cityStr) return 'Other';
+  const c = cityStr.trim();
+  const lower = c.toLowerCase();
+  if (lower.includes('islamabad') || lower.includes('islambad') || lower === 'isl' || lower.includes('capital territory')) return 'Islamabad';
+  if (lower.includes('rawalpindi') || lower.includes('pindi') || lower.includes('rwalpindi')) return 'Rawalpindi';
+  if (lower.includes('lahore') || lower.includes('lhr')) return 'Lahore';
+  if (lower.includes('karachi') || lower.includes('khi')) return 'Karachi';
+  if (lower.includes('abbottabad') || lower.includes('abbotabad')) return 'Abbottabad';
+  if (lower.includes('peshawar')) return 'Peshawar';
+  if (lower.includes('quetta')) return 'Quetta';
+  if (lower.includes('multan')) return 'Multan';
+  if (lower.includes('faisalabad')) return 'Faisalabad';
+  if (lower.includes('naran') || lower.includes('kaghan')) return 'Naran';
+  if (lower.includes('murree')) return 'Murree';
+  if (lower.includes('hunza')) return 'Hunza';
+  if (lower.includes('skardu')) return 'Skardu';
+  if (lower.includes('gilgit')) return 'Gilgit';
+  if (lower.includes('swat')) return 'Swat';
+  return c.charAt(0).toUpperCase() + c.slice(1);
+};
+
 export const mapApifyItemsToLeads = (
   items: any[],
   city: string,
@@ -250,11 +272,12 @@ export const mapApifyItemsToLeads = (
     
     // Normalize city fallback
     let detectedCity = item.city || '';
-    if (!detectedCity || detectedCity.toLowerCase() === 'isl' || detectedCity.toLowerCase().includes('islamabad') || detectedCity.toLowerCase().includes('capital territory')) {
+    if (!detectedCity || detectedCity.toLowerCase() === 'isl' || detectedCity.toLowerCase().includes('islamabad') || detectedCity.toLowerCase().includes('islambad') || detectedCity.toLowerCase().includes('capital territory')) {
       detectedCity = city && city.toLowerCase() !== 'all' ? city : 'Islamabad';
     } else if (city && city.toLowerCase() !== 'all' && !detectedCity) {
       detectedCity = city;
     }
+    detectedCity = normalizeCityName(detectedCity);
 
     return {
       id: `apify_${runId || 'run'}_${index}_${Date.now()}`,
