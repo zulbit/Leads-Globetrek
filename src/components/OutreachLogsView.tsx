@@ -29,6 +29,7 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'delivered' | 'inbound' | 'failed' | 'landline'>('all');
+  const [selectedCityFilter, setSelectedCityFilter] = useState<string>('all');
 
   const getLogCategory = (log: any): 'INBOUND' | 'DELIVERED' | 'FAILED' | 'LANDLINE' => {
     if (log.serverResponse === 'INBOUND_REPLY') return 'INBOUND';
@@ -59,6 +60,10 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
       return true;
     })
     .filter(l => {
+      if (selectedCityFilter === 'all') return true;
+      return (l.city || 'Unknown') === selectedCityFilter;
+    })
+    .filter(l => {
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
@@ -73,6 +78,8 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
     await onRefreshLogs();
     setIsRefreshing(false);
   };
+
+  const uniqueCities = Array.from(new Set(filteredProjectLogs.map(l => l.city || 'Unknown'))).sort();
 
   return (
     <div className="space-y-6">
@@ -150,16 +157,30 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
       <div className="bg-slate-900/80 p-6 rounded-2xl border border-slate-800 shadow-lg space-y-4">
         {/* Controls Header */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-800 pb-4">
-          {/* Search */}
-          <div className="relative w-full sm:w-96">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by business name, phone (+92...), or text..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-teal-500 font-medium"
-            />
+          {/* Search & City Filter */}
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by business name, phone (+92...), or text..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-teal-500 font-medium"
+              />
+            </div>
+            
+            <select
+              value={selectedCityFilter}
+              onChange={(e) => setSelectedCityFilter(e.target.value)}
+              className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-300 focus:outline-none focus:border-teal-500 font-medium appearance-none"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1em' }}
+            >
+              <option value="all">All Cities</option>
+              {uniqueCities.map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
           </div>
 
           {/* Filter Pills */}
@@ -223,6 +244,7 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
             <thead className="bg-slate-950 text-slate-400 uppercase font-semibold text-[10px] border-b border-slate-800">
               <tr>
                 <th className="py-3 px-4">Lead Recipient</th>
+                <th className="py-3 px-4">City</th>
                 <th className="py-3 px-4">WhatsApp Number</th>
                 <th className="py-3 px-4">Message / Response Content</th>
                 <th className="py-3 px-4">Timestamp</th>
@@ -255,6 +277,9 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
                           )}
                         </div>
                       </div>
+                    </td>
+                    <td className="py-3 px-4 text-slate-400 font-medium text-xs whitespace-nowrap">
+                      {log.city || '—'}
                     </td>
                     <td className="py-3 px-4">
                       <span className={`font-mono px-2 py-1 rounded border text-[11px] ${

@@ -30,7 +30,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const { results } = await env.DB.prepare(`
       SELECT 
         l.id, l.leadId, l.phone, l.message, l.serverResponse, l.sentAt,
-        b.title as businessName, b.projectTag as projectTag
+        b.title as businessName, b.projectTag as projectTag, b.city as city
       FROM whatsapp_logs l
       LEFT JOIN leads b ON l.leadId = b.id
       ORDER BY l.sentAt DESC
