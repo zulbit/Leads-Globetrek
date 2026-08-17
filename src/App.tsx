@@ -644,6 +644,7 @@ export function App() {
               onLoadDemoLeads={handleLoadDemoLeads}
               whatsAppConfig={whatsAppConfig}
               onRefreshLogs={fetchLogs}
+              whatsappLogs={whatsappLogs}
             />
           )}
 

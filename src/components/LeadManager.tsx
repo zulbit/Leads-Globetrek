@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Lead, ProjectTag, OutreachStatus, WebsiteStatus, WhatsAppConfig } from '../types/scraper';
 import { exportLeadsToCSV, parseCSVToLeads } from '../services/csvService';
 import { checkWebsiteHealth } from '../services/websiteHealthService';
@@ -43,6 +43,7 @@ interface LeadManagerProps {
   onLoadDemoLeads?: () => void;
   whatsAppConfig?: WhatsAppConfig;
   onRefreshLogs?: () => void;
+  whatsappLogs?: any[];
 }
 
 export const LeadManager: React.FC<LeadManagerProps> = ({
@@ -52,7 +53,8 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
   onOpenOutreachModal,
   onLoadDemoLeads,
   whatsAppConfig,
-  onRefreshLogs
+  onRefreshLogs,
+  whatsappLogs
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('ALL');
@@ -256,11 +258,39 @@ Best regards,
     );
   };
 
+  // Synchronize leads with whatsappLogs so re-imported leads retain their sent status
+  const effectiveLeads: Lead[] = useMemo(() => {
+    if (!whatsappLogs || whatsappLogs.length === 0) return leads;
+    
+    const deliveredPhones = new Map<string, string>();
+    whatsappLogs.forEach(log => {
+      if (log.serverResponse === 'DELIVERED' || log.serverResponse?.startsWith('DELIVERED')) {
+        const cleanP = (log.phone || '').replace(/\D/g, '');
+        if (cleanP) deliveredPhones.set(cleanP, log.sentAt || new Date().toISOString());
+      }
+    });
+
+    return leads.map(l => {
+      const cleanP = (l.phone || '').replace(/\D/g, '');
+      if (cleanP && deliveredPhones.has(cleanP)) {
+        const newStatus: OutreachStatus = (l.outreachStatus === 'Converted' || l.outreachStatus === 'Qualified') 
+          ? l.outreachStatus 
+          : 'WhatsApp Sent';
+        return {
+          ...l,
+          outreachStatus: newStatus,
+          lastContactedAt: l.lastContactedAt || deliveredPhones.get(cleanP)
+        };
+      }
+      return l;
+    });
+  }, [leads, whatsappLogs]);
+
   // Collect all unique custom group tags
-  const existingGroupTags = Array.from(new Set(leads.map(l => l.groupTag).filter(Boolean))) as string[];
+  const existingGroupTags = Array.from(new Set(effectiveLeads.map(l => l.groupTag).filter(Boolean))) as string[];
 
   // Filter leads
-  const filteredLeads = leads.filter(lead => {
+  const filteredLeads = effectiveLeads.filter(lead => {
     const matchesProject = activeProject === 'General' || lead.projectTag === activeProject;
     const matchesSearch = lead.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           lead.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -297,9 +327,9 @@ Best regards,
   ];
   const cities = Array.from(new Set([
     ...PK_DEFAULT_CITIES, 
-    ...leads.map(l => extractCityFromAddressOrText(`${l.title} ${l.address || ''} ${l.city}`, l.city))
+    ...effectiveLeads.map(l => extractCityFromAddressOrText(`${l.title} ${l.address || ''} ${l.city}`, l.city))
   ])).filter(Boolean).sort();
-  const dueFollowUpCount = leads.filter(l => (activeProject === 'General' || l.projectTag === activeProject) && l.followUpDate && l.followUpDate <= todayStr).length;
+  const dueFollowUpCount = effectiveLeads.filter(l => (activeProject === 'General' || l.projectTag === activeProject) && l.followUpDate && l.followUpDate <= todayStr).length;
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {

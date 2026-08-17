@@ -131,7 +131,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     const { results } = await env.DB.prepare(query).bind(...params).all();
     
-    // Sanitize wa.me and whatsapp.com links out of the website field and auto-correct city from address
+    // Cross-reference whatsapp_logs to auto-sync delivery status for newly imported leads
+    let deliveredPhones = new Map<string, string>();
+    try {
+      const logsObj = await env.DB.prepare("SELECT phone, serverResponse, sentAt FROM whatsapp_logs WHERE serverResponse = 'DELIVERED'").all();
+      logsObj.results.forEach((r: any) => {
+        const cleanP = (r.phone || '').replace(/\D/g, '');
+        if (cleanP) deliveredPhones.set(cleanP, r.sentAt);
+      });
+    } catch(e) {}
+
+    // Sanitize wa.me and whatsapp.com links out of the website field, auto-correct city, and sync outreach status
     const sanitizedResults = results.map((l: any) => {
       let website = l.website || '';
       let websiteStatus = l.websiteStatus || 'No Website';
@@ -140,7 +150,21 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         websiteStatus = 'No Website';
       }
       let city = detectRealCity(l.address || '', l.title || '', l.city || '');
-      return { ...l, website, websiteStatus, city };
+      
+      let outreachStatus = l.outreachStatus || 'New';
+      let lastContactedAt = l.lastContactedAt || '';
+
+      const cleanLeadPhone = (l.phone || '').replace(/\D/g, '');
+      if (cleanLeadPhone && deliveredPhones.has(cleanLeadPhone)) {
+        if (outreachStatus === 'New' || !outreachStatus) {
+          outreachStatus = 'WhatsApp Sent';
+        }
+        if (!lastContactedAt) {
+          lastContactedAt = deliveredPhones.get(cleanLeadPhone) || new Date().toISOString();
+        }
+      }
+
+      return { ...l, website, websiteStatus, city, outreachStatus, lastContactedAt };
     });
 
     return new Response(JSON.stringify(sanitizedResults), {
