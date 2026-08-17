@@ -45,10 +45,18 @@ export const EnterpriseHub: React.FC<EnterpriseHubProps> = ({
   onRefreshLogs,
   onQuickWhatsApp
 }) => {
-  const [activePipelineStage, setActivePipelineStage] = useState<'ALL' | 'QUALIFIED' | 'SENT' | 'CONVERTED'>('QUALIFIED');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCity, setSelectedCity] = useState('ALL');
+  const [activePipelineStage, setActivePipelineStage] = useState<'ALL' | 'QUALIFIED' | 'SENT' | 'CONVERTED'>(
+    () => (localStorage.getItem('pk_enterprise_stage') as any) || 'QUALIFIED'
+  );
+  const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('pk_enterprise_search') || '');
+  const [selectedCity, setSelectedCity] = useState(() => localStorage.getItem('pk_enterprise_city') || 'ALL');
   const [isSimulatingWebhook, setIsSimulatingWebhook] = useState(false);
+
+  React.useEffect(() => {
+    localStorage.setItem('pk_enterprise_stage', activePipelineStage);
+    localStorage.setItem('pk_enterprise_search', searchTerm);
+    localStorage.setItem('pk_enterprise_city', selectedCity);
+  }, [activePipelineStage, searchTerm, selectedCity]);
 
   // Filter enterprise leads for current active project
   const projectLeads = leads.filter(l => activeProject === 'General' || l.projectTag === activeProject);

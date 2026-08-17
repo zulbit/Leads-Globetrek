@@ -26,10 +26,20 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
   onRefreshLogs,
   activeProject
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => localStorage.getItem('pk_logs_search') || '');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'delivered' | 'inbound' | 'failed' | 'landline'>('all');
-  const [selectedCityFilter, setSelectedCityFilter] = useState<string>('all');
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'delivered' | 'inbound' | 'failed' | 'landline'>(
+    () => (localStorage.getItem('pk_logs_filter') as any) || 'all'
+  );
+  const [selectedCityFilter, setSelectedCityFilter] = useState<string>(
+    () => localStorage.getItem('pk_logs_city') || 'all'
+  );
+
+  React.useEffect(() => {
+    localStorage.setItem('pk_logs_search', searchQuery);
+    localStorage.setItem('pk_logs_filter', selectedFilter);
+    localStorage.setItem('pk_logs_city', selectedCityFilter);
+  }, [searchQuery, selectedFilter, selectedCityFilter]);
 
   const getLogCategory = (log: any): 'INBOUND' | 'DELIVERED' | 'FAILED' | 'LANDLINE' => {
     if (log.serverResponse === 'INBOUND_REPLY') return 'INBOUND';

@@ -57,15 +57,26 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
   onRefreshLogs,
   whatsappLogs
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCity, setSelectedCity] = useState('ALL');
-  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
-  const [selectedSource, setSelectedSource] = useState<string>('ALL');
-  const [selectedWebStatus, setSelectedWebStatus] = useState<string>('ALL');
-  const [selectedGroupTag, setSelectedGroupTag] = useState<string>('ALL');
-  const [followUpFilter, setFollowUpFilter] = useState<string>('ALL');
+  const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('pk_leads_search') || '');
+  const [selectedCity, setSelectedCity] = useState(() => localStorage.getItem('pk_leads_city') || 'ALL');
+  const [selectedStatus, setSelectedStatus] = useState<string>(() => localStorage.getItem('pk_leads_status') || 'ALL');
+  const [selectedSource, setSelectedSource] = useState<string>(() => localStorage.getItem('pk_leads_source') || 'ALL');
+  const [selectedWebStatus, setSelectedWebStatus] = useState<string>(() => localStorage.getItem('pk_leads_web_status') || 'ALL');
+  const [selectedGroupTag, setSelectedGroupTag] = useState<string>(() => localStorage.getItem('pk_leads_group') || 'ALL');
+  const [followUpFilter, setFollowUpFilter] = useState<string>(() => localStorage.getItem('pk_leads_followup') || 'ALL');
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [isAuditing, setIsAuditing] = useState(false);
+
+  // Persist filter states to localStorage across browser refreshes
+  React.useEffect(() => {
+    localStorage.setItem('pk_leads_search', searchTerm);
+    localStorage.setItem('pk_leads_city', selectedCity);
+    localStorage.setItem('pk_leads_status', selectedStatus);
+    localStorage.setItem('pk_leads_source', selectedSource);
+    localStorage.setItem('pk_leads_web_status', selectedWebStatus);
+    localStorage.setItem('pk_leads_group', selectedGroupTag);
+    localStorage.setItem('pk_leads_followup', followUpFilter);
+  }, [searchTerm, selectedCity, selectedStatus, selectedSource, selectedWebStatus, selectedGroupTag, followUpFilter]);
 
   // Follow-up Schedule Drawer state
   const [followUpLead, setFollowUpLead] = useState<Lead | null>(null);
