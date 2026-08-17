@@ -19,115 +19,62 @@ async function isAuthorized(request: Request, env: Env): Promise<boolean> {
 function detectRealCity(address: string, title: string, existingCity: string): string {
   const combined = `${title || ''} ${address || ''}`.toLowerCase();
   
-  // Islamabad (Check sectors and specific landmarks)
-  if (
-    combined.includes('islamabad') || combined.includes('islambad') || combined.includes('capital territory') ||
-    combined.includes('blue area') || combined.includes('diplomatic enclave') || combined.includes('centaurus') ||
-    combined.includes('bahria enclave') || combined.includes('soan gardens') ||
-    /\b(i-[89]|i-10|i-11|f-[5678]|f-10|f-11|g-[56789]|g-10|g-11|g-13|g-14|g-15|e-7|e-11|h-[89]|h-10|h-11|h-12|d-12|c-12|b-17)\b/i.test(combined)
-  ) {
-    return 'Islamabad';
-  }
+  // 1. Explicit City Names (Highest priority)
+  if (combined.includes('karachi') || combined.includes('khi')) return 'Karachi';
+  if (combined.includes('lahore') || combined.includes('lhr')) return 'Lahore';
+  if (combined.includes('islamabad') || combined.includes('islambad') || combined.includes('capital territory')) return 'Islamabad';
+  if (combined.includes('rawalpindi') || combined.includes('rwalpindi') || combined.includes('pindi')) return 'Rawalpindi';
+  if (combined.includes('peshawar')) return 'Peshawar';
+  if (combined.includes('abbottabad') || combined.includes('abbotabad')) return 'Abbottabad';
+  if (combined.includes('multan')) return 'Multan';
+  if (combined.includes('faisalabad')) return 'Faisalabad';
+  if (combined.includes('quetta')) return 'Quetta';
+  if (combined.includes('naran') || combined.includes('kaghan') || combined.includes('shogran') || combined.includes('babusar') || combined.includes('saif ul malook')) return 'Naran';
+  if (combined.includes('murree') || combined.includes('bhurban') || combined.includes('patriata') || combined.includes('nathia gali') || combined.includes('ayubia')) return 'Murree';
+  if (combined.includes('skardu') || combined.includes('shigar') || combined.includes('kachura')) return 'Skardu';
+  if (combined.includes('hunza') || combined.includes('karimabad') || combined.includes('passu')) return 'Hunza';
+  if (combined.includes('gilgit')) return 'Gilgit';
+  if (combined.includes('swat') || combined.includes('mingora') || combined.includes('kalam') || combined.includes('malam jabba')) return 'Swat';
+  if (combined.includes('gujranwala')) return 'Gujranwala';
+  if (combined.includes('sialkot')) return 'Sialkot';
 
-  // Rawalpindi
+  // 2. City-Specific Neighborhoods / Landmarks (Second priority)
   if (
-    combined.includes('rawalpindi') || combined.includes('rwalpindi') || combined.includes('pindi') ||
-    combined.includes('saddar rawalpindi') || combined.includes('bahria town rawalpindi') ||
-    combined.includes('satellite town rawalpindi') || combined.includes('murree road') ||
-    combined.includes('westridge') || combined.includes('peshawar road') || combined.includes('chaklala') ||
-    combined.includes('gulraiz') || combined.includes('ayub park')
-  ) {
-    return 'Rawalpindi';
-  }
-
-  // Karachi
-  if (
-    combined.includes('karachi') || combined.includes('khi') || combined.includes('clifton') ||
-    combined.includes('dha karachi') || combined.includes('defence karachi') || combined.includes('gulshan-e-iqbal') ||
-    combined.includes('gulberg karachi') || combined.includes('saddar karachi') || combined.includes('north nazimabad') ||
-    combined.includes('tariq road') || combined.includes('shahrah-e-faisal') || combined.includes('korangi') ||
-    combined.includes('pechs') || combined.includes('i.i. chundrigar') || combined.includes('zamzama') ||
-    combined.includes('bahria town karachi') || combined.includes('malir')
+    combined.includes('clifton') || combined.includes('dha karachi') || combined.includes('defence karachi') || 
+    combined.includes('gulshan-e-iqbal') || combined.includes('gulberg karachi') || combined.includes('saddar karachi') || 
+    combined.includes('north nazimabad') || combined.includes('tariq road') || combined.includes('shahrah-e-faisal') || 
+    combined.includes('korangi') || combined.includes('pechs') || combined.includes('p.e.c.h.s') || 
+    combined.includes('i.i. chundrigar') || combined.includes('zamzama') || combined.includes('bahria town karachi') || combined.includes('malir')
   ) {
     return 'Karachi';
   }
 
-  // Lahore
   if (
-    combined.includes('lahore') || combined.includes('lhr') || combined.includes('gulberg') ||
-    combined.includes('dha lahore') || combined.includes('johar town') || combined.includes('model town') ||
-    combined.includes('mall road') || combined.includes('faisal town') || combined.includes('shadman') ||
-    combined.includes('defence lahore') || combined.includes('cavalry ground') || combined.includes('allama iqbal town') ||
-    combined.includes('cantt lahore') || combined.includes('wapda town') || combined.includes('garden town') ||
-    combined.includes('anarkali') || combined.includes('bahria town lahore') || combined.includes('valencia') ||
-    combined.includes('lake city') || combined.includes('mm alam road') || combined.includes('jail road')
+    combined.includes('gulberg') || combined.includes('dha lahore') || combined.includes('johar town') || 
+    combined.includes('model town') || combined.includes('mall road lahore') || combined.includes('faisal town') || 
+    combined.includes('shadman') || combined.includes('defence lahore') || combined.includes('cavalry ground') || 
+    combined.includes('allama iqbal town') || combined.includes('cantt lahore') || combined.includes('wapda town') || 
+    combined.includes('garden town') || combined.includes('anarkali') || combined.includes('bahria town lahore') || 
+    combined.includes('valencia') || combined.includes('lake city') || combined.includes('mm alam road') || combined.includes('jail road')
   ) {
     return 'Lahore';
   }
 
-  // Abbottabad
-  if (combined.includes('abbottabad') || combined.includes('abbotabad') || combined.includes('mandian') || combined.includes('supply abbottabad') || combined.includes('mansehra road') || combined.includes('kakul')) {
-    return 'Abbottabad';
+  if (
+    combined.includes('blue area') || combined.includes('diplomatic enclave') || combined.includes('centaurus') ||
+    combined.includes('bahria enclave') || combined.includes('soan gardens') ||
+    /\b(sector\s+[e-i]-?\d{1,2}|[e-i]-?\d{1,2}\s+markaz)\b/i.test(combined)
+  ) {
+    return 'Islamabad';
   }
 
-  // Murree
-  if (combined.includes('murree') || combined.includes('bhurban') || combined.includes('patriata') || combined.includes('galyat') || combined.includes('nathia gali') || combined.includes('ayubia')) {
-    return 'Murree';
-  }
-
-  // Naran / Kaghan
-  if (combined.includes('naran') || combined.includes('kaghan') || combined.includes('saif ul malook') || combined.includes('babusar') || combined.includes('shogran')) {
-    return 'Naran';
-  }
-
-  // Peshawar
-  if (combined.includes('peshawar') || combined.includes('hayatabad') || combined.includes('university road') || combined.includes('saddar peshawar') || combined.includes('cantt peshawar')) {
-    return 'Peshawar';
-  }
-
-  // Quetta
-  if (combined.includes('quetta') || combined.includes('cantt quetta') || combined.includes('zarghoon road') || combined.includes('jinnah road quetta')) {
-    return 'Quetta';
-  }
-
-  // Multan
-  if (combined.includes('multan') || combined.includes('bosan road') || combined.includes('cantt multan') || combined.includes('gulgasht') || combined.includes('abdali road')) {
-    return 'Multan';
-  }
-
-  // Faisalabad
-  if (combined.includes('faisalabad') || combined.includes('d ground') || combined.includes('satiana road') || combined.includes('peoples colony') || combined.includes('clock tower')) {
-    return 'Faisalabad';
-  }
-
-  // Hunza
-  if (combined.includes('hunza') || combined.includes('karimabad') || combined.includes('aliabad') || combined.includes('passu') || combined.includes('attabad')) {
-    return 'Hunza';
-  }
-
-  // Skardu
-  if (combined.includes('skardu') || combined.includes('shigar') || combined.includes('khaplu') || combined.includes('deosai') || combined.includes('kachura') || combined.includes('shangrila')) {
-    return 'Skardu';
-  }
-
-  // Gilgit
-  if (combined.includes('gilgit') || combined.includes('jutial') || combined.includes('danyore')) {
-    return 'Gilgit';
-  }
-
-  // Swat
-  if (combined.includes('swat') || combined.includes('mingora') || combined.includes('fizagat') || combined.includes('malam jabba') || combined.includes('kalam') || combined.includes('saidu sharif')) {
-    return 'Swat';
-  }
-
-  // Gujranwala
-  if (combined.includes('gujranwala') || combined.includes('gt road gujranwala')) {
-    return 'Gujranwala';
-  }
-
-  // Sialkot
-  if (combined.includes('sialkot') || combined.includes('paris road') || combined.includes('cantt sialkot') || combined.includes('daska')) {
-    return 'Sialkot';
+  if (
+    combined.includes('saddar rawalpindi') || combined.includes('bahria town rawalpindi') ||
+    combined.includes('satellite town') || combined.includes('murree road') ||
+    combined.includes('westridge') || combined.includes('peshawar road') || combined.includes('chaklala') ||
+    combined.includes('gulraiz') || combined.includes('ayub park')
+  ) {
+    return 'Rawalpindi';
   }
 
   return existingCity || 'Other';
