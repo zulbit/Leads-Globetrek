@@ -737,12 +737,16 @@ Best regards,
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setLeads(leads.map(l => l.id === lead.id ? { ...l, notes: '' } : l));
+                                  setLeads(leads.map(l => l.id === lead.id ? { 
+                                    ...l, 
+                                    notes: '',
+                                    outreachStatus: l.lastContactedAt ? 'WhatsApp Sent' : 'New'
+                                  } : l));
                                 }}
                                 className="px-1.5 py-0.5 rounded text-[10px] bg-slate-900 hover:bg-red-950 hover:text-red-300 border border-slate-700 text-slate-400 font-semibold transition-all"
-                                title="Clear note / reply"
+                                title="Clear note and reset status"
                               >
-                                ✕ Clear Note
+                                ✕ Clear Note & Reset
                               </button>
                             </div>
                             <div className="whitespace-pre-wrap font-sans text-slate-200">
