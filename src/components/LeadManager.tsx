@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Lead, ProjectTag, OutreachStatus, WebsiteStatus, WhatsAppConfig } from '../types/scraper';
 import { exportLeadsToCSV, parseCSVToLeads } from '../services/csvService';
 import { checkWebsiteHealth } from '../services/websiteHealthService';
@@ -78,6 +78,7 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
   const [isDispatchingBatch, setIsDispatchingBatch] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [batchLogs, setBatchLogs] = useState<string[]>([]);
+  const cancelDispatchRef = useRef(false);
   
   const defaultGlobetrekPitch = `*GlobeTrek PK — Vendor Onboarding* 🌍✈️
 
@@ -127,6 +128,7 @@ Best regards,
     };
 
     setIsDispatchingBatch(true);
+    cancelDispatchRef.current = false;
     setBatchLogs([]);
     setBatchProgress({ current: 0, total: validPhoneLeads.length });
 
@@ -136,6 +138,14 @@ Best regards,
     let successCount = 0;
 
     for (let i = 0; i < validPhoneLeads.length; i++) {
+      if (cancelDispatchRef.current) {
+        setBatchLogs(prev => [
+          `🛑 Campaign dispatch cancelled by user.`,
+          ...prev
+        ]);
+        break;
+      }
+
       const lead = validPhoneLeads[i];
       setBatchProgress({ current: i + 1, total: validPhoneLeads.length });
 
@@ -197,7 +207,9 @@ Best regards,
     }
 
     setIsDispatchingBatch(false);
-    alert(`🎉 Campaign Complete! Dispatched ${successCount} of ${validPhoneLeads.length} WhatsApp messages.`);
+    if (!cancelDispatchRef.current) {
+      alert(`🎉 Campaign Complete! Dispatched ${successCount} of ${validPhoneLeads.length} WhatsApp messages.`);
+    }
   };
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -1120,11 +1132,20 @@ Best regards,
             {/* Modal Actions */}
             <div className="flex justify-end gap-3 pt-2">
               <button
-                onClick={() => setIsBatchWhatsAppModalOpen(false)}
-                disabled={isDispatchingBatch}
-                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-semibold disabled:opacity-50"
+                onClick={() => {
+                  if (isDispatchingBatch) {
+                    cancelDispatchRef.current = true;
+                  } else {
+                    setIsBatchWhatsAppModalOpen(false);
+                  }
+                }}
+                className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                  isDispatchingBatch 
+                    ? 'bg-red-950 hover:bg-red-900 text-red-300 border border-red-800' 
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                }`}
               >
-                {batchLogs.length > 0 && !isDispatchingBatch ? 'Close Window' : 'Cancel'}
+                {isDispatchingBatch ? '🛑 Cancel Campaign' : (batchLogs.length > 0 ? 'Close Window' : 'Cancel')}
               </button>
               
               <button
