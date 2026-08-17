@@ -8,6 +8,7 @@ import { LinkedInScraper } from './components/LinkedInScraper';
 import { DirectoryScraper } from './components/DirectoryScraper';
 import { SocialScraper } from './components/SocialScraper';
 import { LeadManager } from './components/LeadManager';
+import { EnterpriseHub } from './components/EnterpriseHub';
 import { OutreachCenter } from './components/OutreachCenter';
 import { OutreachLogsView } from './components/OutreachLogsView';
 import { TaskManager } from './components/TaskManager';
@@ -143,7 +144,7 @@ const INITIAL_TASKS: TaskItem[] = [];
 export function App() {
   const getInitialTab = (): string => {
     const hash = window.location.hash.replace(/^#\/?/, '').trim();
-    const validTabs = ['dashboard', 'apify', 'gmaps', 'social', 'linkedin', 'directories', 'leads', 'outreach', 'outreach-logs', 'tasks'];
+    const validTabs = ['dashboard', 'enterprise', 'apify', 'gmaps', 'social', 'linkedin', 'directories', 'leads', 'outreach', 'outreach-logs', 'tasks'];
     if (hash && validTabs.includes(hash)) {
       return hash;
     }
@@ -182,7 +183,7 @@ export function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace(/^#\/?/, '').trim();
-      const validTabs = ['dashboard', 'apify', 'gmaps', 'social', 'linkedin', 'directories', 'leads', 'outreach', 'outreach-logs', 'tasks'];
+      const validTabs = ['dashboard', 'enterprise', 'apify', 'gmaps', 'social', 'linkedin', 'directories', 'leads', 'outreach', 'outreach-logs', 'tasks'];
       if (hash && validTabs.includes(hash) && hash !== activeTab) {
         setActiveTabState(hash);
         localStorage.setItem('pk_active_tab', hash);
@@ -589,6 +590,18 @@ export function App() {
               whatsappLogs={whatsappLogs}
               activeProject={activeProject}
               onNavigateToTab={setActiveTab}
+              onQuickWhatsApp={handleOpenOutreachModal}
+            />
+          )}
+
+          {activeTab === 'enterprise' && (
+            <EnterpriseHub
+              leads={leads}
+              setLeads={setLeads}
+              activeProject={activeProject}
+              whatsAppConfig={whatsAppConfig}
+              whatsappLogs={whatsappLogs}
+              onRefreshLogs={fetchLogs}
               onQuickWhatsApp={handleOpenOutreachModal}
             />
           )}

@@ -56,6 +56,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
+      group: 'Enterprise Pipeline',
+      items: [
+        { id: 'enterprise', label: 'Enterprise / B2B Portal', icon: Building2, badge: 'Qualified' }
+      ]
+    },
+    {
       group: 'Management & Outreach',
       items: [
         { id: 'leads', label: 'Lead Hub & CSV Export', icon: Users },
