@@ -137,9 +137,9 @@ export const sendWhatsAppMessage = async (
     });
 
     const contentType = backendRes.headers.get('content-type');
-    if (backendRes.ok && contentType && contentType.includes('application/json')) {
+    if (contentType && contentType.includes('application/json')) {
       const resultData = await backendRes.json();
-      if (resultData.success) {
+      if (backendRes.ok && resultData.success) {
         return {
           success: true,
           leadId: lead.id,
@@ -149,12 +149,23 @@ export const sendWhatsAppMessage = async (
           messageId: resultData.response?.message_id || `WA-MSG-${Date.now()}`,
           response: resultData.response
         };
-      } else if (resultData.error) {
-        lastError = resultData.error;
+      } else {
+        // Return the actual error surfaced by the proxy (e.g. WhatsApp Gateway Error)
+        return {
+          success: false,
+          leadId: lead.id,
+          phone: formattedPhone,
+          message: finalMessage,
+          deliveryStatus: 'SERVER_ERROR',
+          error: resultData.error || resultData.message || `Backend Proxy Error (HTTP ${backendRes.status})`
+        };
       }
+    } else {
+      lastError = `Backend returned non-JSON response: HTTP ${backendRes.status}`;
     }
-  } catch (backendErr) {
+  } catch (backendErr: any) {
     console.warn('Backend proxy fetch failed, trying direct browser fetch...', backendErr);
+    lastError = backendErr.message || 'Proxy fetch failed';
   }
 
   // Fallback to direct client candidates if backend is unreachable
