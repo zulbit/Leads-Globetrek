@@ -69,7 +69,8 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
       return (
         (l.businessName || '').toLowerCase().includes(q) ||
         (l.phone || '').includes(q) ||
-        (l.message || '').toLowerCase().includes(q)
+        (l.message || '').toLowerCase().includes(q) ||
+        (l.city || '').toLowerCase().includes(q)
       );
     });
 
@@ -165,7 +166,7 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by business name, phone (+92...), or text..."
+                placeholder="Search by business name, phone (+92...), city, or text..."
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white focus:outline-none focus:border-teal-500 font-medium"
               />
             </div>
