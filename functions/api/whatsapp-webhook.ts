@@ -44,11 +44,30 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
 
   try {
-    const rawBody = await request.json() as any;
+    let rawBody: any = {};
+    const contentType = request.headers.get('content-type') || '';
+
+    if (contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')) {
+      const formData = await request.formData();
+      formData.forEach((value, key) => {
+        rawBody[key] = value;
+      });
+    } else {
+      try {
+        rawBody = await request.json();
+      } catch (e) {
+        const text = await request.text();
+        try {
+          rawBody = JSON.parse(text);
+        } catch (e2) {
+          rawBody = { raw: text };
+        }
+      }
+    }
     
     // Parse incoming payload across multiple webhook formats (Gateway, Baileys, WhatsApp Cloud, WA.yello.bid)
-    let sender = rawBody.sender || rawBody.from || rawBody.phone || rawBody.number || rawBody.recipient || rawBody.data?.from || '';
-    let messageText = rawBody.message || rawBody.text || rawBody.body || rawBody.content || rawBody.data?.message || rawBody.data?.text || '';
+    let sender = rawBody.sender || rawBody.from || rawBody.phone || rawBody.number || rawBody.recipient || rawBody.data?.from || rawBody.data?.sender || rawBody.data?.phone || '';
+    let messageText = rawBody.message || rawBody.text || rawBody.body || rawBody.content || rawBody.data?.message || rawBody.data?.text || rawBody.data?.body || '';
 
     // If payload has nested entry (WhatsApp Cloud API format)
     if (rawBody.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
