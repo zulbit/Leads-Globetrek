@@ -124,8 +124,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // Delete any leads from the DB that are NOT in the incoming request payload (keeps deletes in sync)
     const incomingIds = leads.map(l => l.id).filter(Boolean);
     if (incomingIds.length > 0) {
-      const placeholders = incomingIds.map(() => '?').join(',');
-      await env.DB.prepare(`DELETE FROM leads WHERE id NOT IN (${placeholders})`).bind(...incomingIds).run();
+      const existingIdsObj = await env.DB.prepare("SELECT id FROM leads").all();
+      const existingIds = existingIdsObj.results.map(r => r.id as string);
+      const incomingSet = new Set(incomingIds);
+      const idsToDelete = existingIds.filter(id => !incomingSet.has(id));
+      
+      if (idsToDelete.length > 0) {
+        const deleteStatements = idsToDelete.map(id => env.DB.prepare("DELETE FROM leads WHERE id = ?").bind(id));
+        for (let i = 0; i < deleteStatements.length; i += 50) {
+          await env.DB.batch(deleteStatements.slice(i, i + 50));
+        }
+      }
     } else {
       // If we posted an empty array, it means all leads were deleted
       await env.DB.prepare("DELETE FROM leads").run();
@@ -194,7 +203,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       )
     );
 
-    await env.DB.batch(statements);
+    // Chunk statements to avoid D1 batch limits
+    const CHUNK_SIZE = 50;
+    for (let i = 0; i < statements.length; i += CHUNK_SIZE) {
+      const chunk = statements.slice(i, i + CHUNK_SIZE);
+      await env.DB.batch(chunk);
+    }
 
     return new Response(JSON.stringify({ success: true, count: leads.length }), {
       headers: { 'Content-Type': 'application/json' }
