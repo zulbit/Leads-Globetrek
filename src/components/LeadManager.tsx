@@ -4,7 +4,7 @@ import { exportLeadsToCSV, parseCSVToLeads } from '../services/csvService';
 import { checkWebsiteHealth } from '../services/websiteHealthService';
 import { probeGoogleForOfficialWebsite } from '../services/googleSearchWebsiteProber';
 import { sendWhatsAppMessage, parseMessageTemplate } from '../services/whatsappService';
-import { normalizeCityName } from '../services/apifyService';
+import { normalizeCityName, extractCityFromAddressOrText } from '../services/apifyService';
 import { 
   Users, 
   Search, 
@@ -266,7 +266,8 @@ Best regards,
                           lead.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           lead.phone.includes(searchTerm) ||
                           (lead.groupTag && lead.groupTag.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCity = selectedCity === 'ALL' || normalizeCityName(lead.city).toLowerCase() === normalizeCityName(selectedCity).toLowerCase();
+    const leadRealCity = extractCityFromAddressOrText(`${lead.title} ${lead.address || ''} ${lead.city}`, lead.city);
+    const matchesCity = selectedCity === 'ALL' || leadRealCity.toLowerCase() === selectedCity.toLowerCase();
     const matchesStatus = selectedStatus === 'ALL' || lead.outreachStatus === selectedStatus;
     const matchesSource = selectedSource === 'ALL' || lead.source === selectedSource;
     const matchesGroup = selectedGroupTag === 'ALL' || lead.groupTag === selectedGroupTag;
@@ -294,7 +295,10 @@ Best regards,
     'Islamabad', 'Lahore', 'Karachi', 'Rawalpindi', 'Peshawar', 'Quetta', 'Multan', 'Faisalabad',
     'Gujranwala', 'Sialkot', 'Abbottabad', 'Murree', 'Hunza', 'Skardu', 'Gilgit', 'Swat', 'Naran'
   ];
-  const cities = Array.from(new Set([...PK_DEFAULT_CITIES, ...leads.map(l => normalizeCityName(l.city))])).filter(Boolean).sort();
+  const cities = Array.from(new Set([
+    ...PK_DEFAULT_CITIES, 
+    ...leads.map(l => extractCityFromAddressOrText(`${l.title} ${l.address || ''} ${l.city}`, l.city))
+  ])).filter(Boolean).sort();
   const dueFollowUpCount = leads.filter(l => (activeProject === 'General' || l.projectTag === activeProject) && l.followUpDate && l.followUpDate <= todayStr).length;
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -681,7 +685,7 @@ Best regards,
                           )}
                         </div>
                         <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-teal-400" /> {lead.city} • <span className="text-slate-500">{lead.category}</span>
+                          <MapPin className="w-3 h-3 text-teal-400" /> {extractCityFromAddressOrText(`${lead.title} ${lead.address || ''} ${lead.city}`, lead.city)} • <span className="text-slate-500">{lead.category}</span>
                         </div>
                         {lead.address && (
                           <div className="text-[10px] text-slate-500 mt-1 leading-relaxed">
