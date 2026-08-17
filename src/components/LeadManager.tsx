@@ -32,7 +32,8 @@ import {
   Shield,
   CheckCheck,
   Zap,
-  Code2
+  Code2,
+  Layers
 } from 'lucide-react';
 
 interface LeadManagerProps {
@@ -78,6 +79,7 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
   // Group / City WhatsApp Batch Campaign Modal State
   const [isBatchWhatsAppModalOpen, setIsBatchWhatsAppModalOpen] = useState(false);
   const [batchDelaySeconds, setBatchDelaySeconds] = useState(8);
+  const [batchSizeLimit, setBatchSizeLimit] = useState<string>('50');
   const [isDispatchingBatch, setIsDispatchingBatch] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [batchLogs, setBatchLogs] = useState<string[]>([]);
@@ -115,9 +117,12 @@ Best regards,
 
   const selectedLeadsObjects = leads.filter(l => selectedLeadIds.includes(l.id));
   const validPhoneLeads = selectedLeadsObjects.filter(l => Boolean(l.whatsapp || l.phone));
+  const effectiveBatchLeads = batchSizeLimit === 'ALL' 
+    ? validPhoneLeads 
+    : validPhoneLeads.slice(0, Math.min(Number(batchSizeLimit), validPhoneLeads.length));
 
   const handleStartGroupWhatsAppDispatch = async () => {
-    if (validPhoneLeads.length === 0) {
+    if (effectiveBatchLeads.length === 0) {
       alert('None of the selected leads have a valid phone number.');
       return;
     }
@@ -133,14 +138,14 @@ Best regards,
     setIsDispatchingBatch(true);
     cancelDispatchRef.current = false;
     setBatchLogs([]);
-    setBatchProgress({ current: 0, total: validPhoneLeads.length });
+    setBatchProgress({ current: 0, total: effectiveBatchLeads.length });
 
     const followUpDateStr = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const sessionToken = localStorage.getItem('access_token') || '';
 
     let successCount = 0;
 
-    for (let i = 0; i < validPhoneLeads.length; i++) {
+    for (let i = 0; i < effectiveBatchLeads.length; i++) {
       if (cancelDispatchRef.current) {
         setBatchLogs(prev => [
           `🛑 Campaign dispatch cancelled by user.`,
@@ -149,8 +154,8 @@ Best regards,
         break;
       }
 
-      const lead = validPhoneLeads[i];
-      setBatchProgress({ current: i + 1, total: validPhoneLeads.length });
+      const lead = effectiveBatchLeads[i];
+      setBatchProgress({ current: i + 1, total: effectiveBatchLeads.length });
 
       const res = await sendWhatsAppMessage(cfg, lead, batchMessageTemplate);
 
@@ -178,7 +183,7 @@ Best regards,
       if (res.success) {
         successCount++;
         setBatchLogs(prev => [
-          `[${i + 1}/${validPhoneLeads.length}] ✅ Delivered to ${lead.title} (${res.phone})`,
+          `[${i + 1}/${effectiveBatchLeads.length}] ✅ Delivered to ${lead.title} (${res.phone})`,
           ...prev
         ]);
 
@@ -193,13 +198,13 @@ Best regards,
       } else {
         const isLandline = res.error?.includes('PTCL landline');
         setBatchLogs(prev => [
-          `[${i + 1}/${validPhoneLeads.length}] ${isLandline ? '⚠️ Skipped (Landline)' : '❌ Failed'} for ${lead.title} (${res.phone}): ${res.error}`,
+          `[${i + 1}/${effectiveBatchLeads.length}] ${isLandline ? '⚠️ Skipped (Landline)' : '❌ Failed'} for ${lead.title} (${res.phone}): ${res.error}`,
           ...prev
         ]);
       }
 
       // Anti-ban pause interval between messages
-      if (i < validPhoneLeads.length - 1) {
+      if (i < effectiveBatchLeads.length - 1) {
         const jitter = Math.floor(Math.random() * 2000);
         await new Promise(r => setTimeout(r, batchDelaySeconds * 1000 + jitter));
       }
@@ -211,7 +216,7 @@ Best regards,
 
     setIsDispatchingBatch(false);
     if (!cancelDispatchRef.current) {
-      alert(`🎉 Campaign Complete! Dispatched ${successCount} of ${validPhoneLeads.length} WhatsApp messages.`);
+      alert(`🎉 Campaign Batch Complete! Dispatched ${successCount} of ${effectiveBatchLeads.length} WhatsApp messages.`);
     }
   };
 
@@ -1113,6 +1118,44 @@ Best regards,
               </div>
             )}
 
+            {/* Batch Chunk Limit Selector */}
+            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <label className="text-slate-300 font-semibold flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-teal-400" /> Batch Dispatch Chunk Size:
+                </label>
+                <span className="text-[11px] text-teal-300 font-mono font-bold bg-teal-950 px-2 py-0.5 rounded border border-teal-800/60">
+                  {batchSizeLimit === 'ALL' ? `All (${validPhoneLeads.length})` : `First ${effectiveBatchLeads.length} leads`}
+                </span>
+              </div>
+              <div className="grid grid-cols-5 gap-2 pt-1">
+                {[
+                  { label: '25 Leads', val: '25' },
+                  { label: '40 Leads', val: '40' },
+                  { label: '50 Leads', val: '50' },
+                  { label: '99 Leads', val: '99' },
+                  { label: `All (${validPhoneLeads.length})`, val: 'ALL' },
+                ].map(opt => (
+                  <button
+                    key={opt.val}
+                    type="button"
+                    disabled={isDispatchingBatch}
+                    onClick={() => setBatchSizeLimit(opt.val)}
+                    className={`py-1.5 px-1 sm:px-2 rounded-lg text-[11px] font-bold border transition-all truncate ${
+                      batchSizeLimit === opt.val
+                        ? 'bg-teal-600 border-teal-400 text-white shadow-md shadow-teal-600/30'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400">
+                <strong className="text-teal-300">Safety Tip:</strong> Sending in controlled waves of 25, 40, 50, or 99 keeps your WhatsApp number in good standing with Meta and prevents connection rate-limits.
+              </p>
+            </div>
+
             {/* Anti-Ban Protection Settings */}
             <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2 text-xs">
               <div className="flex items-center justify-between">
@@ -1189,7 +1232,7 @@ Best regards,
               
               <button
                 onClick={handleStartGroupWhatsAppDispatch}
-                disabled={isDispatchingBatch || validPhoneLeads.length === 0}
+                disabled={isDispatchingBatch || effectiveBatchLeads.length === 0}
                 className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50 transition-all"
               >
                 {isDispatchingBatch ? (
@@ -1198,7 +1241,7 @@ Best regards,
                   </>
                 ) : (
                   <>
-                    <Send className="w-4 h-4" /> Launch Campaign to {validPhoneLeads.length} Leads 🚀
+                    <Send className="w-4 h-4" /> Launch Campaign to {effectiveBatchLeads.length} Leads 🚀
                   </>
                 )}
               </button>
