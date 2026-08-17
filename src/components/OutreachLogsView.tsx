@@ -39,8 +39,14 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
     return 'FAILED';
   };
 
+  const getProjectTag = (log: any) => {
+    if (log.projectTag) return log.projectTag;
+    if (log.message?.toLowerCase().includes('dreamstay')) return 'Dreamstay';
+    return 'Globetrek';
+  };
+
   const filteredProjectLogs = whatsappLogs.filter(l => 
-    activeProject === 'General' || l.projectTag === activeProject
+    activeProject === 'General' || getProjectTag(l) === activeProject
   );
 
   const logsMatchingCityAndSearch = filteredProjectLogs
