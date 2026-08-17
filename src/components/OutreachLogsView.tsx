@@ -43,22 +43,7 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
     activeProject === 'General' || l.projectTag === activeProject
   );
 
-  const totalSent = filteredProjectLogs.filter(l => l.serverResponse !== 'INBOUND_REPLY').length;
-  const totalInbound = filteredProjectLogs.filter(l => l.serverResponse === 'INBOUND_REPLY').length;
-  const totalDelivered = filteredProjectLogs.filter(l => getLogCategory(l) === 'DELIVERED').length;
-  const totalLandlines = filteredProjectLogs.filter(l => getLogCategory(l) === 'LANDLINE').length;
-  const totalFailed = filteredProjectLogs.filter(l => getLogCategory(l) === 'FAILED' || getLogCategory(l) === 'LANDLINE').length;
-  const successRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0;
-
-  const displayLogs = filteredProjectLogs
-    .filter(l => {
-      const cat = getLogCategory(l);
-      if (selectedFilter === 'delivered') return cat === 'DELIVERED';
-      if (selectedFilter === 'inbound') return cat === 'INBOUND';
-      if (selectedFilter === 'failed') return cat === 'FAILED' || cat === 'LANDLINE';
-      if (selectedFilter === 'landline') return cat === 'LANDLINE';
-      return true;
-    })
+  const logsMatchingCityAndSearch = filteredProjectLogs
     .filter(l => {
       if (selectedCityFilter === 'all') return true;
       return (l.city || 'Unknown') === selectedCityFilter;
@@ -72,6 +57,23 @@ export const OutreachLogsView: React.FC<OutreachLogsViewProps> = ({
         (l.message || '').toLowerCase().includes(q) ||
         (l.city || '').toLowerCase().includes(q)
       );
+    });
+
+  const totalSent = logsMatchingCityAndSearch.filter(l => l.serverResponse !== 'INBOUND_REPLY').length;
+  const totalInbound = logsMatchingCityAndSearch.filter(l => l.serverResponse === 'INBOUND_REPLY').length;
+  const totalDelivered = logsMatchingCityAndSearch.filter(l => getLogCategory(l) === 'DELIVERED').length;
+  const totalLandlines = logsMatchingCityAndSearch.filter(l => getLogCategory(l) === 'LANDLINE').length;
+  const totalFailed = logsMatchingCityAndSearch.filter(l => getLogCategory(l) === 'FAILED' || getLogCategory(l) === 'LANDLINE').length;
+  const successRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0;
+
+  const displayLogs = logsMatchingCityAndSearch
+    .filter(l => {
+      const cat = getLogCategory(l);
+      if (selectedFilter === 'delivered') return cat === 'DELIVERED';
+      if (selectedFilter === 'inbound') return cat === 'INBOUND';
+      if (selectedFilter === 'failed') return cat === 'FAILED' || cat === 'LANDLINE';
+      if (selectedFilter === 'landline') return cat === 'LANDLINE';
+      return true;
     });
 
   const handleRefresh = async () => {
