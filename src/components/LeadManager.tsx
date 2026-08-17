@@ -78,13 +78,22 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
 
   // Group / City WhatsApp Batch Campaign Modal State
   const [isBatchWhatsAppModalOpen, setIsBatchWhatsAppModalOpen] = useState(false);
-  const [batchDelaySeconds, setBatchDelaySeconds] = useState(8);
-  const [batchSizeLimit, setBatchSizeLimit] = useState<string>('50');
+  const [batchDelaySeconds, setBatchDelaySeconds] = useState(25);
+  const [batchSizeLimit, setBatchSizeLimit] = useState<string>('25');
   const [isDispatchingBatch, setIsDispatchingBatch] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [batchLogs, setBatchLogs] = useState<string[]>([]);
   const cancelDispatchRef = useRef(false);
   
+  const safeGlobetrekSoftPitch = `Assalam-o-Alaikum *{{business_name}}*! 🌴✈️
+
+We are onboarding verified travel & tour operators in *{{city}}* onto *GlobeTrek PK* (Pakistan's AI-powered tourism portal).
+
+Would you be open to receiving our free vendor registration details and portal guide?
+
+Best regards,
+*GlobeTrek Team*`;
+
   const defaultGlobetrekPitch = `*GlobeTrek PK — Vendor Onboarding* 🌍✈️
 
 Dear *{{business_name}}*,
@@ -109,10 +118,10 @@ https://globetrek.pk/vendor-guide
 Best regards,
 *GlobeTrek Operations Team* 🌴`;
 
-  const defaultDreamstayPitch = `Hello {{business_name}}! Greetings from Dreamstay. We discovered your listing in {{city}} and would love to partner with you to boost your guest bookings and direct reservations across Pakistan. Let's connect on WhatsApp!`;
+  const defaultDreamstayPitch = `Assalam-o-Alaikum {{business_name}}! Greetings from Dreamstay. We discovered your listing in {{city}} and would love to partner with you to boost your direct reservations across Pakistan. Would you like us to share our partnership details?`;
 
   const [batchMessageTemplate, setBatchMessageTemplate] = useState(
-    activeProject === 'Dreamstay' ? defaultDreamstayPitch : defaultGlobetrekPitch
+    activeProject === 'Dreamstay' ? defaultDreamstayPitch : safeGlobetrekSoftPitch
   );
 
   const selectedLeadsObjects = leads.filter(l => selectedLeadIds.includes(l.id));
@@ -1120,14 +1129,27 @@ Best regards,
 
             {/* Campaign Template Editor */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between text-xs flex-wrap gap-2">
                 <label className="font-bold text-slate-300">Campaign Outreach Template</label>
-                <span className="text-[10px] text-slate-400">
-                  Placeholders: <code className="text-emerald-400">{"{{business_name}}"}</code>, <code className="text-emerald-400">{"{{city}}"}</code>
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setBatchMessageTemplate(safeGlobetrekSoftPitch)}
+                    className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 text-[10px] font-bold hover:bg-emerald-900"
+                  >
+                    🛡️ Soft Pitch (Zero Risk)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBatchMessageTemplate(defaultGlobetrekPitch)}
+                    className="px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-700 text-[10px] font-semibold hover:bg-slate-800"
+                  >
+                    🌐 Full Pitch (With Links)
+                  </button>
+                </div>
               </div>
               <textarea
-                rows={6}
+                rows={5}
                 value={batchMessageTemplate}
                 onChange={(e) => setBatchMessageTemplate(e.target.value)}
                 disabled={isDispatchingBatch}
@@ -1197,9 +1219,9 @@ Best regards,
               </div>
               <input
                 type="range"
-                min="3"
-                max="20"
-                step="1"
+                min="10"
+                max="60"
+                step="5"
                 value={batchDelaySeconds}
                 onChange={(e) => setBatchDelaySeconds(Number(e.target.value))}
                 disabled={isDispatchingBatch}
