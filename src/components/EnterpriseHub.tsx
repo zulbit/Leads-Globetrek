@@ -283,9 +283,12 @@ export const EnterpriseHub: React.FC<EnterpriseHubProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-white">Live Webhook Bridge: Connected & Active</span>
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800">
+                ⚡ Auto-Syncing (15s)
+              </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Listening for incoming vendor WhatsApp messages via <code className="text-teal-300 font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">/api/whatsapp-webhook</code>
+              Automatically receiving incoming vendor WhatsApp replies in real-time via <code className="text-teal-300 font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">/api/whatsapp-webhook</code> — no manual page refresh required.
             </p>
           </div>
         </div>

@@ -381,6 +381,41 @@ export function App() {
     initDatabase();
   }, [sessionToken]);
 
+  // Live Auto-Refresh Heartbeat (Every 15 seconds) to pull real-time inbound WhatsApp replies and lead promotions
+  useEffect(() => {
+    if (!sessionToken || isLoadingDB) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const headers = { 'Authorization': `Bearer ${sessionToken}` };
+        
+        // Fetch latest WhatsApp delivery & inbound reply logs
+        const logsRes = await fetch('/api/whatsapp-logs', { headers });
+        if (logsRes.ok) {
+          const logsData = await logsRes.json();
+          if (Array.isArray(logsData)) {
+            setWhatsappLogs(logsData);
+          }
+        }
+
+        // Fetch updated leads (e.g. auto-promoted Qualified status from webhooks)
+        if (['enterprise', 'leads', 'outreach-logs', 'dashboard'].includes(activeTab)) {
+          const leadsRes = await fetch('/api/leads', { headers });
+          if (leadsRes.ok) {
+            const leadsData = await leadsRes.json();
+            if (Array.isArray(leadsData) && leadsData.length > 0) {
+              setLeads(leadsData);
+            }
+          }
+        }
+      } catch (e) {
+        // Silent catch for background heartbeat
+      }
+    }, 15000);
+
+    return () => clearInterval(pollInterval);
+  }, [sessionToken, isLoadingDB, activeTab]);
+
   // Sync changes back to D1 Database (only when connected to actual backend)
   useEffect(() => {
     if (!isLoadingDB && sessionToken && leads.length > 0) {
