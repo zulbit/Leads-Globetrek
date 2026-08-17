@@ -588,11 +588,40 @@ Best regards,
 
         {/* Bulk Action Toolbar */}
         {selectedLeadIds.length > 0 && (
-          <div className="pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/60">
-            <span className="text-teal-400 font-bold flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-teal-400" />
-              {selectedLeadIds.length} lead(s) selected ({validPhoneLeads.length} ready for WhatsApp)
-            </span>
+          <div className="pt-3 border-t border-slate-800/80 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 text-xs bg-slate-950/80 p-3.5 rounded-xl border border-slate-800">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-teal-400 font-bold flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-teal-400" />
+                {selectedLeadIds.length} lead(s) selected ({validPhoneLeads.length} ready for WhatsApp)
+              </span>
+
+              {/* Quick Batch Selection Pills */}
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <span className="text-slate-500">Quick Select:</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedLeadIds(filteredLeads.slice(0, 25).map(l => l.id))}
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-teal-300 border border-slate-700 font-semibold transition-all"
+                >
+                  First 25
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedLeadIds(filteredLeads.slice(0, 50).map(l => l.id))}
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-teal-300 border border-slate-700 font-semibold transition-all"
+                >
+                  First 50
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedLeadIds(filteredLeads.map(l => l.id))}
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 font-semibold transition-all"
+                >
+                  All ({filteredLeads.length})
+                </button>
+              </div>
+            </div>
+
             <div className="flex items-center gap-2.5 flex-wrap">
               <button
                 onClick={() => setIsBatchWhatsAppModalOpen(true)}
