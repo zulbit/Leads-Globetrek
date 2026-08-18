@@ -474,7 +474,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#020617', 
+                      borderColor: '#334155', 
+                      borderRadius: '12px',
+                      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6)',
+                      padding: '8px 14px'
+                    }}
+                    itemStyle={{ color: '#38bdf8', fontWeight: 700, fontSize: '12px' }}
+                    labelStyle={{ color: '#ffffff', fontWeight: 800, fontSize: '13px' }}
+                    formatter={(value: any, name: any) => [
+                      <span key="val" className="text-white font-black text-xs">{value} Leads</span>,
+                      <span key="name" className="text-teal-300 font-bold text-xs">{name}</span>
+                    ]}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
