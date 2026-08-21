@@ -37,8 +37,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       targetUrl = 'https://wa.yello.bid';
     }
 
-    const secretKey = (apiToken || '').trim() || 'bef0066b8598f3c97dc16e7af12e95b98e773430';
-    const accountId = (instanceId || '').trim() || '1765976556c4ca4238a0b923820dcc509a6f75849b6942a9ec027d2';
+    const secretKey = (apiToken || '').trim() || '10e916da76bac02be1ac10635b9a04735450d8e2';
+    const accountId = (instanceId || '').trim() || '1787195284c4ca4238a0b923820dcc509a6f75849b6a866f94c2329';
 
     // Format phone to +92 format
     let cleanPhone = (phone || '').replace(/[^\d+]/g, '');

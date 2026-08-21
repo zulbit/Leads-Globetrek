@@ -51,14 +51,14 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
       : 'https://wa.yello.bid'
   );
   const [apiToken, setApiToken] = useState(
-    whatsAppConfig.apiToken && whatsAppConfig.apiToken !== 'be70066b8598f3c97dc16e7a712e95b98e773430'
+    whatsAppConfig.apiToken && whatsAppConfig.apiToken !== 'be70066b8598f3c97dc16e7a712e95b98e773430' && whatsAppConfig.apiToken !== 'bef0066b8598f3c97dc16e7af12e95b98e773430'
       ? whatsAppConfig.apiToken
-      : 'bef0066b8598f3c97dc16e7af12e95b98e773430'
+      : '10e916da76bac02be1ac10635b9a04735450d8e2'
   );
   const [instanceId, setInstanceId] = useState(
-    whatsAppConfig.instanceId && whatsAppConfig.instanceId !== 'gateway_01'
+    whatsAppConfig.instanceId && whatsAppConfig.instanceId !== 'gateway_01' && whatsAppConfig.instanceId !== '1765976556c4ca4238a0b923820dcc509a6f75849b6942a9ec027d2'
       ? whatsAppConfig.instanceId
-      : '1765976556c4ca4238a0b923820dcc509a6f75849b6942a9ec027d2'
+      : '1787195284c4ca4238a0b923820dcc509a6f75849b6a866f94c2329'
   );
   const [sendIntervalSeconds, setSendIntervalSeconds] = useState(
     whatsAppConfig.sendIntervalSeconds || 8
@@ -130,11 +130,58 @@ If you need any assistance setting up your tours and packages, reply directly to
 Best regards,
 *GlobeTrek PK Support*`;
 
-  const [messageTemplate, setMessageTemplate] = useState(() => {
-    const saved = localStorage.getItem(`custom_wa_template_${activeProject}`);
+  const PRESET_KEYS = {
+    roman_urdu: 'roman_urdu',
+    onboarding: 'onboarding',
+    followup: 'followup',
+  } as const;
+
+  type PresetKey = keyof typeof PRESET_KEYS;
+
+  const getDefaultPresetContent = (presetKey: PresetKey, proj: string): string => {
+    if (proj === 'Dreamstay') {
+      if (presetKey === 'followup') {
+        return `*Dreamstay — Follow-Up* ⏰\n\nAssalam o Alaikum *{{business_name}}* team!\n\nFollowing up on our listing invitation for your property in *{{city}}* on Dreamstay.\n\nReady to get started? Let us know!`;
+      }
+      if (presetKey === 'onboarding') {
+        return defaultDreamstayMsg;
+      }
+      return defaultDreamstayMsg;
+    }
+    switch (presetKey) {
+      case 'roman_urdu':
+        return PRESET_GLOBETREK_ROMAN_URDU;
+      case 'onboarding':
+        return PRESET_GLOBETREK_ONBOARDING;
+      case 'followup':
+        return PRESET_FOLLOWUP;
+      default:
+        return PRESET_GLOBETREK_ROMAN_URDU;
+    }
+  };
+
+  const getSavedPreset = (presetKey: PresetKey, proj: string): string => {
+    const saved = localStorage.getItem(`custom_wa_template_${proj}_${presetKey}`);
     if (saved) return saved;
-    return activeProject === 'Dreamstay' ? defaultDreamstayMsg : PRESET_GLOBETREK_ROMAN_URDU;
+    // Fallback to legacy single template storage if available for roman_urdu
+    if (presetKey === 'roman_urdu') {
+      const legacy = localStorage.getItem(`custom_wa_template_${proj}`);
+      if (legacy) return legacy;
+    }
+    return getDefaultPresetContent(presetKey, proj);
+  };
+
+  const [activePreset, setActivePreset] = useState<PresetKey>('roman_urdu');
+
+  const [messageTemplate, setMessageTemplate] = useState<string>(() => {
+    return getSavedPreset('roman_urdu', activeProject);
   });
+
+  const handleSelectPreset = (key: PresetKey) => {
+    setActivePreset(key);
+    const content = getSavedPreset(key, activeProject);
+    setMessageTemplate(content);
+  };
 
   const [customAiInstructions, setCustomAiInstructions] = useState(() => {
     return localStorage.getItem(`deepseek_custom_instructions_${activeProject}`) || '';
@@ -144,17 +191,25 @@ Best regards,
   const [isAiPromptSaved, setIsAiPromptSaved] = useState(false);
 
   const handleSaveActiveTemplate = () => {
+    localStorage.setItem(`custom_wa_template_${activeProject}_${activePreset}`, messageTemplate);
     localStorage.setItem(`custom_wa_template_${activeProject}`, messageTemplate);
     if (whatsAppConfig) {
       const updated = {
         ...whatsAppConfig,
-        templates: [{ id: 'active', name: `${activeProject} Active Pitch`, content: messageTemplate, projectTag: activeProject }]
+        templates: [{ id: activePreset, name: `${activeProject} ${activePreset}`, content: messageTemplate, projectTag: activeProject }]
       };
       setWhatsAppConfig(updated);
       localStorage.setItem('whatsapp_config', JSON.stringify(updated));
     }
     setIsTemplateSaved(true);
     setTimeout(() => setIsTemplateSaved(false), 2500);
+  };
+
+  const handleResetActiveTemplate = () => {
+    const defaultMsg = getDefaultPresetContent(activePreset, activeProject);
+    setMessageTemplate(defaultMsg);
+    localStorage.setItem(`custom_wa_template_${activeProject}_${activePreset}`, defaultMsg);
+    localStorage.setItem(`custom_wa_template_${activeProject}`, defaultMsg);
   };
 
   const handleSaveCustomAiPrompt = () => {
@@ -870,13 +925,9 @@ Best regards,
                   )}
                   
                   <button
-                    onClick={() => {
-                      const defaultMsg = activeProject === 'Dreamstay' ? defaultDreamstayMsg : PRESET_GLOBETREK_ROMAN_URDU;
-                      setMessageTemplate(defaultMsg);
-                      localStorage.setItem(`custom_wa_template_${activeProject}`, defaultMsg);
-                    }}
+                    onClick={handleResetActiveTemplate}
                     className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 flex items-center gap-1 transition-all"
-                    title="Reset to default template"
+                    title="Reset active category to default template"
                   >
                     <RotateCcw className="w-3.5 h-3.5" /> Reset
                   </button>
@@ -896,29 +947,32 @@ Best regards,
                   <BookOpen className="w-3.5 h-3.5 text-teal-400" /> Presets:
                 </span>
                 <button
-                  onClick={() => {
-                    setMessageTemplate(PRESET_GLOBETREK_ROMAN_URDU);
-                    localStorage.setItem(`custom_wa_template_${activeProject}`, PRESET_GLOBETREK_ROMAN_URDU);
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-teal-300 border border-slate-800 text-[11px] font-medium transition-all"
+                  onClick={() => handleSelectPreset('roman_urdu')}
+                  className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                    activePreset === 'roman_urdu'
+                      ? 'bg-teal-500/20 text-teal-300 border-teal-500/50 shadow-sm shadow-teal-500/20 font-bold'
+                      : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+                  }`}
                 >
                   🇵🇰 Roman Urdu Partner Invitation
                 </button>
                 <button
-                  onClick={() => {
-                    setMessageTemplate(PRESET_GLOBETREK_ONBOARDING);
-                    localStorage.setItem(`custom_wa_template_${activeProject}`, PRESET_GLOBETREK_ONBOARDING);
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 text-[11px] font-medium transition-all"
+                  onClick={() => handleSelectPreset('onboarding')}
+                  className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                    activePreset === 'onboarding'
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-sm shadow-emerald-500/20 font-bold'
+                      : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+                  }`}
                 >
                   🌐 Official Onboarding (English)
                 </button>
                 <button
-                  onClick={() => {
-                    setMessageTemplate(PRESET_FOLLOWUP);
-                    localStorage.setItem(`custom_wa_template_${activeProject}`, PRESET_FOLLOWUP);
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-800 text-[11px] font-medium transition-all"
+                  onClick={() => handleSelectPreset('followup')}
+                  className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                    activePreset === 'followup'
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm shadow-amber-500/20 font-bold'
+                      : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+                  }`}
                 >
                   ⏰ 3-Day Follow-Up
                 </button>
@@ -928,8 +982,10 @@ Best regards,
                 rows={8}
                 value={messageTemplate}
                 onChange={(e) => {
-                  setMessageTemplate(e.target.value);
-                  localStorage.setItem(`custom_wa_template_${activeProject}`, e.target.value);
+                  const val = e.target.value;
+                  setMessageTemplate(val);
+                  localStorage.setItem(`custom_wa_template_${activeProject}_${activePreset}`, val);
+                  localStorage.setItem(`custom_wa_template_${activeProject}`, val);
                 }}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono leading-relaxed"
               />

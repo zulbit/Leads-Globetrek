@@ -47,21 +47,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     let rawBody: any = {};
     const contentType = request.headers.get('content-type') || '';
 
-    if (contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')) {
-      const formData = await request.formData();
-      formData.forEach((value, key) => {
+    const text = await request.text();
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+      const params = new URLSearchParams(text);
+      params.forEach((value, key) => {
         rawBody[key] = value;
       });
     } else {
       try {
-        rawBody = await request.json();
+        rawBody = JSON.parse(text);
       } catch (e) {
-        const text = await request.text();
-        try {
-          rawBody = JSON.parse(text);
-        } catch (e2) {
-          rawBody = { raw: text };
-        }
+        rawBody = { raw: text };
       }
     }
     

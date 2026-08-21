@@ -88,7 +88,7 @@ export const sendWhatsAppMessage = async (
   }
   
   const cleanUrl = rawUrl.replace(/\/$/, '');
-  const token = config.apiToken.trim() || 'be70066b8598f3c97dc16e7a712e95b98e773430';
+  const token = config.apiToken.trim() || '10e916da76bac02be1ac10635b9a04735450d8e2';
 
   const template = customMessage || (config.templates && config.templates.length > 0 ? config.templates[0].content : 'Hello {{business_name}}, greetings from {{project}}!');
   const finalMessage = parseMessageTemplate(template, lead);
