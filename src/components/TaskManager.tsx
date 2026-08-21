@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TaskItem, ProjectTag, Lead, WhatsAppConfig } from '../types/scraper';
+import { TaskItem, ProjectTag, Lead, WhatsAppConfig, LeadSource } from '../types/scraper';
 import { scrapeLeadsEngine } from '../services/scraperEngine';
 import { fetchApifyDatasetByRunId } from '../services/apifyService';
 import { sendWhatsAppMessage } from '../services/whatsappService';
@@ -62,7 +62,14 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     ]);
 
     try {
-      const leads = await fetchApifyDatasetByRunId(token, runId, task.targetCity, task.projectTag);
+      let explicitSource: LeadSource = 'Google Maps';
+      if (task.title.toLowerCase().includes('instagram')) {
+        explicitSource = 'Instagram Bio';
+      } else if (task.title.toLowerCase().includes('facebook')) {
+        explicitSource = 'Facebook Page';
+      }
+
+      const leads = await fetchApifyDatasetByRunId(token, runId, task.targetCity, task.projectTag, explicitSource);
       if (leads.length > 0) {
         if (onLeadsScraped) onLeadsScraped(leads);
         setFetchedTaskIds(prev => {

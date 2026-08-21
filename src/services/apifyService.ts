@@ -86,7 +86,8 @@ export const fetchApifyDatasetByRunId = async (
   token: string,
   runId: string,
   city: string,
-  projectTag: ProjectTag
+  projectTag: ProjectTag,
+  explicitSource?: LeadSource
 ): Promise<Lead[]> => {
   if (!token) throw new Error('Apify API Token is required');
   if (!runId) throw new Error('Run ID is required');
@@ -108,7 +109,7 @@ export const fetchApifyDatasetByRunId = async (
     throw new Error('Failed to retrieve dataset items.');
   }
   const items = await res.json();
-  return mapApifyItemsToLeads(items, city, projectTag, runId);
+  return mapApifyItemsToLeads(items, city, projectTag, runId, explicitSource);
 };
 
 
