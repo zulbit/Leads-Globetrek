@@ -23,7 +23,9 @@ import {
   Save,
   BookOpen,
   SlidersHorizontal,
-  RotateCcw
+  RotateCcw,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface OutreachCenterProps {
@@ -63,6 +65,7 @@ export const OutreachCenter: React.FC<OutreachCenterProps> = ({
   const [sendIntervalSeconds, setSendIntervalSeconds] = useState(
     whatsAppConfig.sendIntervalSeconds || 8
   );
+  const [showApiToken, setShowApiToken] = useState(false);
   
   const defaultDreamstayMsg = `Hello {{business_name}}! Greetings from Dreamstay. We discovered your listing in {{city}} and would love to partner with you to boost your guest bookings and direct reservations across Pakistan. Let's connect on WhatsApp!`;
   const defaultGlobetrekMsg = `*GlobeTrek PK — Vendor Onboarding* 🌍✈️
@@ -649,13 +652,27 @@ Best regards,
 
               <div>
                 <label className="block text-slate-400 font-medium mb-1">API Token / Secret Key</label>
-                <input
-                  type="password"
-                  value={apiToken}
-                  onChange={(e) => setApiToken(e.target.value)}
-                  placeholder="Enter API token..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
-                />
+                <div className="relative">
+                  <input
+                    type={showApiToken ? 'text' : 'password'}
+                    value={apiToken}
+                    onChange={(e) => setApiToken(e.target.value)}
+                    placeholder="Enter API token..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 pr-10 text-white font-mono text-xs focus:outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiToken(!showApiToken)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-md transition-colors"
+                    title={showApiToken ? 'Hide Secret Key' : 'Show Secret Key'}
+                  >
+                    {showApiToken ? (
+                      <EyeOff className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <Eye className="w-4 h-4 text-slate-400 hover:text-slate-200" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div>
