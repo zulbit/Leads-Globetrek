@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lead, ApifyConfig, ProjectTag } from '../types/scraper';
 import { runApifyGoogleMapsScraper, fetchApifyDatasetByRunId, getLocalRunHistory, getRecentApifyRuns, ScrapeRunRecord, saveLocalRunRecord } from '../services/apifyService';
-import { Bot, Key, Sparkles, MapPin, Search, CheckCircle2, AlertCircle, Loader2, Database, ExternalLink, Download, History, RefreshCw, Clock } from 'lucide-react';
+import { Bot, Key, Sparkles, MapPin, Search, CheckCircle2, AlertCircle, Loader2, Database, ExternalLink, Download, History, RefreshCw, Clock, Eye, EyeOff } from 'lucide-react';
 
 interface ApifyScraperProps {
   apifyConfig: ApifyConfig;
@@ -34,6 +34,7 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
   onLogScraperTask
 }) => {
   const [apiToken, setApiToken] = useState(apifyConfig.apiToken || '');
+  const [showApifyToken, setShowApifyToken] = useState(false);
   const [displayName, setDisplayName] = useState(apifyConfig.displayName || 'ZulCodex\'s Apify');
   const [selectedCity, setSelectedCity] = useState('Lahore');
   const [selectedTerm, setSelectedTerm] = useState(activeProject === 'Dreamstay' ? 'Guest Houses' : 'Tour Operators');
@@ -247,13 +248,27 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
 
             <div>
               <label className="block text-slate-400 font-medium mb-1">Apify API Token</label>
-              <input
-                type="password"
-                value={apiToken}
-                onChange={(e) => setApiToken(e.target.value)}
-                placeholder="apify_api_xxxxxxxxxxxxxxxxxxxxxx"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-teal-300 font-mono text-xs focus:outline-none focus:border-teal-500"
-              />
+              <div className="relative">
+                <input
+                  type={showApifyToken ? 'text' : 'password'}
+                  value={apiToken}
+                  onChange={(e) => setApiToken(e.target.value)}
+                  placeholder="apify_api_xxxxxxxxxxxxxxxxxxxxxx"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 pr-10 text-teal-300 font-mono text-xs focus:outline-none focus:border-teal-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApifyToken(!showApifyToken)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-md transition-colors"
+                  title={showApifyToken ? 'Hide Apify API Token' : 'Show Apify API Token'}
+                >
+                  {showApifyToken ? (
+                    <EyeOff className="w-4 h-4 text-teal-400" />
+                  ) : (
+                    <Eye className="w-4 h-4 text-slate-400 hover:text-slate-200" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <button
