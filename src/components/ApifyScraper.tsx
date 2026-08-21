@@ -34,7 +34,7 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
   onLogScraperTask
 }) => {
   const [apiToken, setApiToken] = useState(apifyConfig.apiToken || '');
-  const [showApifyToken, setShowApifyToken] = useState(false);
+  const [showApiToken, setShowApiToken] = useState(false);
   const [displayName, setDisplayName] = useState(apifyConfig.displayName || 'ZulCodex\'s Apify');
   const [selectedCity, setSelectedCity] = useState('Lahore');
   const [selectedTerm, setSelectedTerm] = useState(activeProject === 'Dreamstay' ? 'Guest Houses' : 'Tour Operators');
@@ -250,7 +250,7 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
               <label className="block text-slate-400 font-medium mb-1">Apify API Token</label>
               <div className="relative">
                 <input
-                  type={showApifyToken ? 'text' : 'password'}
+                  type={showApiToken ? 'text' : 'password'}
                   value={apiToken}
                   onChange={(e) => setApiToken(e.target.value)}
                   placeholder="apify_api_xxxxxxxxxxxxxxxxxxxxxx"
@@ -258,11 +258,11 @@ export const ApifyScraper: React.FC<ApifyScraperProps> = ({
                 />
                 <button
                   type="button"
-                  onClick={() => setShowApifyToken(!showApifyToken)}
+                  onClick={() => setShowApiToken(!showApiToken)}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 rounded-md transition-colors"
-                  title={showApifyToken ? 'Hide Apify API Token' : 'Show Apify API Token'}
+                  title={showApiToken ? 'Hide API Token' : 'Show API Token'}
                 >
-                  {showApifyToken ? (
+                  {showApiToken ? (
                     <EyeOff className="w-4 h-4 text-teal-400" />
                   ) : (
                     <Eye className="w-4 h-4 text-slate-400 hover:text-slate-200" />
