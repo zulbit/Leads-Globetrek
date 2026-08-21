@@ -331,27 +331,48 @@ export const mapApifyItemsToLeads = (
   runId?: string
 ): Lead[] => {
   return items.map((item, index) => {
-    const rawPhone = item.phone || item.phoneNumber || item.phoneUnformatted || '';
+    // Extract phone numbers from common fields as well as Instagram bio text or Facebook page info
+    let rawPhone = item.phone || item.phoneNumber || item.phoneUnformatted || item.businessPhoneNumber || item.contactPhone || '';
+    
+    // Check if phone or whatsapp is mentioned inside Instagram bio text or biography
+    if (!rawPhone && (item.biography || item.caption || item.text || item.description)) {
+      const bioText = `${item.biography || ''} ${item.caption || ''} ${item.text || ''} ${item.description || ''}`;
+      const phoneMatch = bioText.match(/(\+?92[0-9\s-]{9,12}|03[0-9\s-]{9,11})/);
+      if (phoneMatch) {
+        rawPhone = phoneMatch[0];
+      }
+    }
+    
     const formattedPhone = formatPakistanPhone(rawPhone);
     
-    // Normalize city using address, title, and raw city field
-    const fullText = `${item.title || ''} ${item.address || ''} ${item.street || ''} ${item.city || ''}`;
+    // Normalize title / username / business name
+    const title = item.title || item.name || item.businessName || item.fullName || (item.username ? `@${item.username}` : '') || 'Pakistan Business';
+    const contactPerson = item.ownerName || item.managerName || item.fullName || (item.username ? `@${item.username}` : '');
+
+    // Normalize website / Instagram profile URL
+    const website = item.website || item.url || item.externalUrl || item.external_url || (item.username ? `https://instagram.com/${item.username}` : '');
+
+    // Normalize city using address, title, bio, and raw city field
+    const fullText = `${title} ${item.biography || ''} ${item.address || ''} ${item.street || ''} ${item.city || ''} ${item.location || ''}`;
     const detectedCity = extractCityFromAddressOrText(fullText, item.city || city);
+
+    // Normalize category
+    const category = item.categoryName || item.category || (item.username ? 'Instagram Travel/Tour Creator' : 'Hospitality / Travel');
 
     return {
       id: `apify_${runId || 'run'}_${index}_${Date.now()}`,
-      title: item.title || item.name || item.businessName || 'Pakistan Business',
-      contactPerson: item.ownerName || item.managerName || '',
+      title,
+      contactPerson,
       phone: formattedPhone || rawPhone || '',
       whatsapp: formattedPhone || rawPhone || '',
-      email: item.email || item.contactEmail || item.emails?.[0] || '',
-      website: item.website || item.url || '',
+      email: item.email || item.contactEmail || item.emails?.[0] || item.businessEmail || '',
+      website,
       address: item.address || item.street || `${detectedCity}, Pakistan`,
       city: detectedCity,
       country: 'Pakistan',
-      category: item.categoryName || item.category || 'Hospitality / Travel',
+      category,
       rating: item.totalScore || item.rating || undefined,
-      reviewsCount: item.reviewsCount || item.userRatingsTotal || undefined,
+      reviewsCount: item.reviewsCount || item.userRatingsTotal || item.followersCount || item.edge_followed_by?.count || undefined,
       source: 'Apify Cloud',
       projectTag: projectTag,
       outreachStatus: 'New',

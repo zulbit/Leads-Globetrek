@@ -74,26 +74,64 @@ export const scrapeLeadsEngine = async (params: ScrapeParams): Promise<Lead[]> =
   try {
     const webhookUrl = `https://leads-globetrek.pages.dev/api/apify-webhook?secret=${encodeURIComponent(secretToken)}&projectTag=${encodeURIComponent(params.projectTag)}&city=${encodeURIComponent(params.city)}&query=${encodeURIComponent(params.query)}&platform=${encodeURIComponent(params.platform)}&apifyToken=${encodeURIComponent(token.trim())}`;
 
+    let actorId = 'compass~crawler-google-places';
+    let actorBody: Record<string, any> = {};
+
+    if (params.platform === 'Instagram Bio') {
+      // Use official Apify Instagram Scraper / Profile Search
+      actorId = 'apify~instagram-scraper';
+      actorBody = {
+        search: `${params.query} ${params.city} Pakistan`,
+        searchType: 'hashtag',
+        searchLimit: params.count,
+        resultsType: 'details',
+        resultsLimit: params.count,
+        webhooks: [
+          {
+            eventTypes: ['ACTOR.RUN.SUCCEEDED'],
+            requestUrl: webhookUrl
+          }
+        ]
+      };
+    } else if (params.platform === 'Facebook Page') {
+      actorId = 'apify~facebook-pages-scraper';
+      actorBody = {
+        searchQueries: [`${params.query} ${params.city} Pakistan`],
+        maxPages: params.count,
+        language: 'en',
+        webhooks: [
+          {
+            eventTypes: ['ACTOR.RUN.SUCCEEDED'],
+            requestUrl: webhookUrl
+          }
+        ]
+      };
+    } else {
+      // Default to Google Maps Places Crawler
+      actorId = 'compass~crawler-google-places';
+      actorBody = {
+        searchStringsArray: searchQueries,
+        locationQuery: `${params.city}, Pakistan`,
+        maxCrawledPlacesPerSearch: placesPerSearch,
+        language: 'en',
+        extractEmail: true,
+        allPlacesNoSearch: false,
+        webhooks: [
+          {
+            eventTypes: ['ACTOR.RUN.SUCCEEDED'],
+            requestUrl: webhookUrl
+          }
+        ]
+      };
+    }
+
     // Call the ASYNC run endpoint to avoid 5-minute HTTP timeouts
     const response = await fetch(
-      `https://api.apify.com/v2/actors/compass~crawler-google-places/runs?token=${encodeURIComponent(token.trim())}`,
+      `https://api.apify.com/v2/actors/${actorId}/runs?token=${encodeURIComponent(token.trim())}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          searchStringsArray: searchQueries,
-          locationQuery: `${params.city}, Pakistan`,
-          maxCrawledPlacesPerSearch: placesPerSearch,
-          language: 'en',
-          extractEmail: true,
-          allPlacesNoSearch: false,
-          webhooks: [
-            {
-              eventTypes: ['ACTOR.RUN.SUCCEEDED'],
-              requestUrl: webhookUrl
-            }
-          ]
-        })
+        body: JSON.stringify(actorBody)
       }
     );
 
