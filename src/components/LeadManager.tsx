@@ -61,6 +61,7 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
   const [selectedCity, setSelectedCity] = useState(() => localStorage.getItem('pk_leads_city') || 'ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>(() => localStorage.getItem('pk_leads_status') || 'ALL');
   const [selectedSource, setSelectedSource] = useState<string>(() => localStorage.getItem('pk_leads_source') || 'ALL');
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>(() => localStorage.getItem('pk_leads_date_filter') || 'ALL');
   const [selectedWebStatus, setSelectedWebStatus] = useState<string>(() => localStorage.getItem('pk_leads_web_status') || 'ALL');
   const [selectedGroupTag, setSelectedGroupTag] = useState<string>(() => localStorage.getItem('pk_leads_group') || 'ALL');
   const [followUpFilter, setFollowUpFilter] = useState<string>(() => localStorage.getItem('pk_leads_followup') || 'ALL');
@@ -73,10 +74,11 @@ export const LeadManager: React.FC<LeadManagerProps> = ({
     localStorage.setItem('pk_leads_city', selectedCity);
     localStorage.setItem('pk_leads_status', selectedStatus);
     localStorage.setItem('pk_leads_source', selectedSource);
+    localStorage.setItem('pk_leads_date_filter', selectedDateFilter);
     localStorage.setItem('pk_leads_web_status', selectedWebStatus);
     localStorage.setItem('pk_leads_group', selectedGroupTag);
     localStorage.setItem('pk_leads_followup', followUpFilter);
-  }, [searchTerm, selectedCity, selectedStatus, selectedSource, selectedWebStatus, selectedGroupTag, followUpFilter]);
+  }, [searchTerm, selectedCity, selectedStatus, selectedSource, selectedDateFilter, selectedWebStatus, selectedGroupTag, followUpFilter]);
 
   // Follow-up Schedule Drawer state
   const [followUpLead, setFollowUpLead] = useState<Lead | null>(null);
@@ -311,8 +313,9 @@ Best regards,
     });
   }, [leads, whatsappLogs]);
 
-  // Collect all unique custom group tags
+  // Collect all unique custom group tags and lead sources
   const existingGroupTags = Array.from(new Set(effectiveLeads.map(l => l.groupTag).filter(Boolean))) as string[];
+  const existingSources = Array.from(new Set(effectiveLeads.map(l => l.source).filter(Boolean))) as string[];
 
   // Filter leads
   const filteredLeads = effectiveLeads.filter(lead => {
@@ -327,6 +330,28 @@ Best regards,
     const matchesSource = selectedSource === 'ALL' || lead.source === selectedSource;
     const matchesGroup = selectedGroupTag === 'ALL' || lead.groupTag === selectedGroupTag;
     
+    // Date filter: Today, Last 7 Days, Last 30 Days, Specific Date
+    let matchesDate = true;
+    if (selectedDateFilter !== 'ALL') {
+      const leadDateStr = lead.createdAt ? lead.createdAt.split('T')[0] : '';
+      if (selectedDateFilter === 'TODAY') {
+        matchesDate = leadDateStr === todayStr;
+      } else if (selectedDateFilter === '7_DAYS') {
+        const d7 = new Date();
+        d7.setDate(d7.getDate() - 7);
+        const d7Str = d7.toISOString().split('T')[0];
+        matchesDate = leadDateStr >= d7Str;
+      } else if (selectedDateFilter === '30_DAYS') {
+        const d30 = new Date();
+        d30.setDate(d30.getDate() - 30);
+        const d30Str = d30.toISOString().split('T')[0];
+        matchesDate = leadDateStr >= d30Str;
+      } else if (selectedDateFilter.startsWith('DATE:')) {
+        const targetDate = selectedDateFilter.replace('DATE:', '');
+        matchesDate = leadDateStr === targetDate;
+      }
+    }
+
     let matchesWebStatus = true;
     if (selectedWebStatus === 'MISSING_OR_BROKEN') {
       matchesWebStatus = lead.websiteStatus === 'No Website' || lead.websiteStatus === 'Broken (404 Error)' || lead.websiteStatus === 'Facebook Page Only';
@@ -343,7 +368,7 @@ Best regards,
       matchesFollowUp = !lead.lastContactedAt;
     }
 
-    return matchesProject && matchesSearch && matchesCity && matchesStatus && matchesSource && matchesWebStatus && matchesFollowUp && matchesGroup;
+    return matchesProject && matchesSearch && matchesCity && matchesStatus && matchesSource && matchesDate && matchesWebStatus && matchesFollowUp && matchesGroup;
   });
 
   const PK_DEFAULT_CITIES = [
@@ -518,30 +543,51 @@ Best regards,
 
       {/* Filter & Search Bar */}
       <div className="bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow-lg space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2.5 text-xs">
           {/* Search Box */}
-          <div className="relative">
+          <div className="relative lg:col-span-2">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search business name..."
+              placeholder="Search business name, phone..."
               className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-white focus:outline-none focus:border-teal-500"
             />
           </div>
 
-          {/* Group / Tag Filter */}
+          {/* Lead Source Filter */}
           <div>
             <select
-              value={selectedGroupTag}
-              onChange={(e) => setSelectedGroupTag(e.target.value)}
+              value={selectedSource}
+              onChange={(e) => setSelectedSource(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sky-300 font-bold focus:outline-none focus:border-sky-500"
+            >
+              <option value="ALL">All Sources ({existingSources.length})</option>
+              <option value="Google Maps">📍 Google Maps</option>
+              <option value="Instagram Bio">📷 Instagram Bio</option>
+              <option value="Facebook Page">📘 Facebook Page</option>
+              <option value="Apify Cloud">☁️ Apify Cloud</option>
+              <option value="CSV Import">📁 CSV Import</option>
+              {existingSources
+                .filter(s => !['Google Maps', 'Instagram Bio', 'Facebook Page', 'Apify Cloud', 'CSV Import'].includes(s))
+                .map(s => (
+                  <option key={s} value={s}>🌐 {s}</option>
+                ))}
+            </select>
+          </div>
+
+          {/* Scraped Date Filter */}
+          <div>
+            <select
+              value={selectedDateFilter}
+              onChange={(e) => setSelectedDateFilter(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-purple-300 font-bold focus:outline-none focus:border-purple-500"
             >
-              <option value="ALL">All Custom Groups ({existingGroupTags.length})</option>
-              {existingGroupTags.map(gt => (
-                <option key={gt} value={gt}>🏷️ {gt}</option>
-              ))}
+              <option value="ALL">📅 All Dates</option>
+              <option value="TODAY">⚡ Added Today</option>
+              <option value="7_DAYS">📆 Last 7 Days</option>
+              <option value="30_DAYS">🗓️ Last 30 Days</option>
             </select>
           </div>
 
@@ -556,23 +602,6 @@ Best regards,
               <option value="DUE_TODAY">⏰ Follow-ups Due Today ({dueFollowUpCount})</option>
               <option value="CONTACTED">✅ Contacted Leads Only</option>
               <option value="UNCONTACTED">🆕 Uncontacted Leads Only</option>
-            </select>
-          </div>
-
-          {/* Website Health Audit Filter */}
-          <div>
-            <select
-              value={selectedWebStatus}
-              onChange={(e) => setSelectedWebStatus(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-amber-300 font-bold focus:outline-none focus:border-amber-500"
-            >
-              <option value="ALL">All Website Audits</option>
-              <option value="MISSING_OR_BROKEN">🔥 No Website / FB Only / 404 (Hot Targets)</option>
-              <option value="Facebook Page Only">📘 Facebook Page Only</option>
-              <option value="No Website">⚠️ No Website Listed</option>
-              <option value="Broken (404 Error)">❌ Broken Website (404)</option>
-              <option value="Active (200 OK)">🌐 Verified (200 OK)</option>
-              <option value="Reachable (status unverified)">🔗 Reachable (unverified)</option>
             </select>
           </div>
 
@@ -596,7 +625,7 @@ Best regards,
             <select
               value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-teal-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-teal-300 font-bold focus:outline-none focus:border-teal-500"
             >
               <option value="ALL">All PK Cities</option>
               {cities.map(c => (
@@ -604,6 +633,56 @@ Best regards,
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Website Audit & Secondary Filters row */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/60 text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-slate-500 text-[11px] font-semibold">Website Filter:</span>
+            <select
+              value={selectedWebStatus}
+              onChange={(e) => setSelectedWebStatus(e.target.value)}
+              className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-amber-300 font-medium text-[11px] focus:outline-none focus:border-amber-500"
+            >
+              <option value="ALL">All Website Audits</option>
+              <option value="MISSING_OR_BROKEN">🔥 No Website / FB Only / 404 (Hot Targets)</option>
+              <option value="Facebook Page Only">📘 Facebook Page Only</option>
+              <option value="No Website">⚠️ No Website Listed</option>
+              <option value="Broken (404 Error)">❌ Broken Website (404)</option>
+              <option value="Active (200 OK)">🌐 Verified (200 OK)</option>
+            </select>
+
+            {existingGroupTags.length > 0 && (
+              <select
+                value={selectedGroupTag}
+                onChange={(e) => setSelectedGroupTag(e.target.value)}
+                className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-purple-300 font-medium text-[11px] focus:outline-none focus:border-purple-500"
+              >
+                <option value="ALL">All Custom Groups ({existingGroupTags.length})</option>
+                {existingGroupTags.map(gt => (
+                  <option key={gt} value={gt}>🏷️ {gt}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {(selectedCity !== 'ALL' || selectedStatus !== 'ALL' || selectedSource !== 'ALL' || selectedDateFilter !== 'ALL' || selectedWebStatus !== 'ALL' || selectedGroupTag !== 'ALL' || followUpFilter !== 'ALL' || searchTerm.trim()) && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setSelectedCity('ALL');
+                setSelectedStatus('ALL');
+                setSelectedSource('ALL');
+                setSelectedDateFilter('ALL');
+                setSelectedWebStatus('ALL');
+                setSelectedGroupTag('ALL');
+                setFollowUpFilter('ALL');
+              }}
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 border border-slate-700 text-[11px] font-bold transition-all flex items-center gap-1"
+            >
+              ✕ Clear All Filters
+            </button>
+          )}
         </div>
 
         {/* Bulk Action Toolbar */}
@@ -682,6 +761,16 @@ Best regards,
                 <MapPin className="w-3 h-3 text-teal-400" /> City: {selectedCity}
               </span>
             )}
+            {selectedSource !== 'ALL' && (
+              <span className="px-2.5 py-0.5 rounded-lg bg-sky-950 text-sky-300 border border-sky-800 font-bold flex items-center gap-1">
+                Source: {selectedSource}
+              </span>
+            )}
+            {selectedDateFilter !== 'ALL' && (
+              <span className="px-2.5 py-0.5 rounded-lg bg-purple-950 text-purple-300 border border-purple-800 font-bold flex items-center gap-1">
+                📅 {selectedDateFilter === 'TODAY' ? 'Added Today' : selectedDateFilter === '7_DAYS' ? 'Last 7 Days' : 'Last 30 Days'}
+              </span>
+            )}
             {selectedStatus !== 'ALL' && (
               <span className="px-2.5 py-0.5 rounded-lg bg-slate-800 text-slate-300 font-medium">
                 Status: {selectedStatus}
@@ -694,7 +783,7 @@ Best regards,
             )}
           </div>
           <div className="text-[11px] text-slate-400 font-mono">
-            {selectedCity !== 'ALL' ? `Filtered by ${selectedCity} (${filteredLeads.length} matching)` : `Showing all cities (${filteredLeads.length} total)`}
+            {filteredLeads.length} of {effectiveLeads.length} leads matching filters
           </div>
         </div>
 
@@ -711,7 +800,8 @@ Best regards,
                   />
                 </th>
                 <th className="py-3 px-4">Business Name & City</th>
-                <th className="py-3 px-4">Custom Group / Tag</th>
+                <th className="py-3 px-4">Source</th>
+                <th className="py-3 px-4">Added Date</th>
                 <th className="py-3 px-4">WhatsApp / Phone</th>
                 <th className="py-3 px-4">Contacted History</th>
                 <th className="py-3 px-4">Follow-up Schedule</th>
@@ -723,7 +813,7 @@ Best regards,
             <tbody className="divide-y divide-slate-800/60">
               {filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center">
+                  <td colSpan={10} className="py-12 text-center">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
                         <Users className="w-6 h-6" />
@@ -810,19 +900,44 @@ Best regards,
                         )}
                       </td>
 
-                    {/* Custom Group Tag Column */}
+                    {/* Lead Source Column */}
                     <td className="py-3 px-4">
-                      {lead.groupTag ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-950 text-purple-300 border border-purple-800 inline-flex items-center gap-1">
-                          🏷️ {lead.groupTag}
+                      {lead.source === 'Google Maps' ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-950 text-sky-300 border border-sky-800 inline-flex items-center gap-1">
+                          📍 Google Maps
+                        </span>
+                      ) : lead.source === 'Instagram Bio' ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-pink-950 text-pink-300 border border-pink-800 inline-flex items-center gap-1">
+                          📷 Instagram
+                        </span>
+                      ) : lead.source === 'Facebook Page' ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800 inline-flex items-center gap-1">
+                          📘 Facebook
+                        </span>
+                      ) : lead.source === 'Apify Cloud' ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-950 text-teal-300 border border-teal-800 inline-flex items-center gap-1">
+                          ☁️ Apify Cloud
+                        </span>
+                      ) : lead.source === 'CSV Import' ? (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700 inline-flex items-center gap-1">
+                          📁 CSV Import
                         </span>
                       ) : (
-                        <button
-                          onClick={() => { setSelectedLeadIds([lead.id]); setIsAssignGroupModalOpen(true); }}
-                          className="text-[10px] text-slate-500 hover:text-purple-400 font-medium"
-                        >
-                          + Add Group
-                        </button>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                          {lead.source || 'Scraped'}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Added Date Column */}
+                    <td className="py-3 px-4">
+                      <div className="text-[11px] font-mono text-slate-300">
+                        {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'Recent'}
+                      </div>
+                      {lead.createdAt && (
+                        <div className="text-[9px] text-slate-500 font-mono">
+                          {new Date(lead.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       )}
                     </td>
 
