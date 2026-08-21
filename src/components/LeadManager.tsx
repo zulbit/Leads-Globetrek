@@ -285,19 +285,33 @@ Best regards,
     );
   };
 
-  // Synchronize leads with whatsappLogs so re-imported leads retain their sent status
+  // Synchronize leads with whatsappLogs and normalize legacy sources
   const effectiveLeads: Lead[] = useMemo(() => {
-    if (!whatsappLogs || whatsappLogs.length === 0) return leads;
-    
     const deliveredPhones = new Map<string, string>();
-    whatsappLogs.forEach(log => {
-      if (log.serverResponse === 'DELIVERED' || log.serverResponse?.startsWith('DELIVERED')) {
-        const cleanP = (log.phone || '').replace(/\D/g, '');
-        if (cleanP) deliveredPhones.set(cleanP, log.sentAt || new Date().toISOString());
-      }
-    });
+    if (whatsappLogs && whatsappLogs.length > 0) {
+      whatsappLogs.forEach(log => {
+        if (log.serverResponse === 'DELIVERED' || log.serverResponse?.startsWith('DELIVERED')) {
+          const cleanP = (log.phone || '').replace(/\D/g, '');
+          if (cleanP) deliveredPhones.set(cleanP, log.sentAt || new Date().toISOString());
+        }
+      });
+    }
 
     return leads.map(l => {
+      let resolvedSource = l.source;
+      // If legacy label was 'Apify Cloud', detect actual platform
+      if (!resolvedSource || resolvedSource === 'Apify Cloud') {
+        const web = (l.website || '').toLowerCase();
+        const cat = (l.category || '').toLowerCase();
+        if (web.includes('instagram.com') || l.title?.startsWith('@') || cat.includes('instagram')) {
+          resolvedSource = 'Instagram Bio';
+        } else if (web.includes('facebook.com') || cat.includes('facebook')) {
+          resolvedSource = 'Facebook Page';
+        } else {
+          resolvedSource = 'Google Maps';
+        }
+      }
+
       const cleanP = (l.phone || '').replace(/\D/g, '');
       if (cleanP && deliveredPhones.has(cleanP)) {
         const newStatus: OutreachStatus = (l.outreachStatus === 'Converted' || l.outreachStatus === 'Qualified') 
@@ -305,11 +319,15 @@ Best regards,
           : 'WhatsApp Sent';
         return {
           ...l,
+          source: resolvedSource,
           outreachStatus: newStatus,
           lastContactedAt: l.lastContactedAt || deliveredPhones.get(cleanP)
         };
       }
-      return l;
+      return {
+        ...l,
+        source: resolvedSource
+      };
     });
   }, [leads, whatsappLogs]);
 
@@ -931,8 +949,16 @@ Best regards,
 
                     {/* Added Date Column */}
                     <td className="py-3 px-4">
-                      <div className="text-[11px] font-mono text-slate-300">
-                        {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : 'Recent'}
+                      <div className="text-[11px] font-mono text-slate-300 font-medium">
+                        {lead.createdAt ? (() => {
+                          const d = new Date(lead.createdAt);
+                          if (isNaN(d.getTime())) return 'Recent';
+                          const day = String(d.getDate()).padStart(2, '0');
+                          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                          const month = months[d.getMonth()];
+                          const year = String(d.getFullYear()).slice(-2);
+                          return `${day}/${month}/${year}`;
+                        })() : 'Recent'}
                       </div>
                       {lead.createdAt && (
                         <div className="text-[9px] text-slate-500 font-mono">

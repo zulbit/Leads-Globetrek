@@ -1,4 +1,4 @@
-import { Lead, ApifyConfig, ProjectTag } from '../types/scraper';
+import { Lead, ApifyConfig, ProjectTag, LeadSource } from '../types/scraper';
 import { formatPakistanPhone } from './whatsappService';
 
 export interface ApifyRunResult {
@@ -328,7 +328,8 @@ export const mapApifyItemsToLeads = (
   items: any[],
   city: string,
   projectTag: ProjectTag,
-  runId?: string
+  runId?: string,
+  explicitSource?: LeadSource
 ): Lead[] => {
   return items.map((item, index) => {
     // Extract phone numbers from common fields as well as Instagram bio text or Facebook page info
@@ -359,6 +360,20 @@ export const mapApifyItemsToLeads = (
     // Normalize category
     const category = item.categoryName || item.category || (item.username ? 'Instagram Travel/Tour Creator' : 'Hospitality / Travel');
 
+    // Detect actual granular platform source
+    let source: LeadSource = explicitSource || 'Google Maps';
+    if (!explicitSource) {
+      if (item.username || item.biography || (item.url && item.url.includes('instagram.com')) || (website && website.includes('instagram.com'))) {
+        source = 'Instagram Bio';
+      } else if (item.facebookPage || item.likes || (item.url && item.url.includes('facebook.com')) || (website && website.includes('facebook.com'))) {
+        source = 'Facebook Page';
+      } else if (item.placeId || item.totalScore || item.googlePlaceId || item.searchPageUrl || item.cid) {
+        source = 'Google Maps';
+      } else {
+        source = 'Google Maps';
+      }
+    }
+
     return {
       id: `apify_${runId || 'run'}_${index}_${Date.now()}`,
       title,
@@ -373,7 +388,7 @@ export const mapApifyItemsToLeads = (
       category,
       rating: item.totalScore || item.rating || undefined,
       reviewsCount: item.reviewsCount || item.userRatingsTotal || item.followersCount || item.edge_followed_by?.count || undefined,
-      source: 'Apify Cloud',
+      source,
       projectTag: projectTag,
       outreachStatus: 'New',
       apifyRunId: runId,
